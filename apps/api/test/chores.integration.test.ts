@@ -1151,17 +1151,21 @@ describe('one-off chores + rollover (carry-forward)', () => {
     expect(await choreRrule(mine[0].choreId)).toBeNull()
   })
 
-  it('a future-dated one-off shows from today (creation) onward, keeping its future due_on', async () => {
+  // Fork behaviour: settings.chores.hideFutureDated defaults ON, so a one-off dated ahead
+  // is held back until its day — upstream shows it from the day it is created. The
+  // setting's on/off toggle has its own describe block at the end of this file.
+  it('a future-dated one-off is held back until its day, keeping its future due_on', async () => {
     const future = shift(today, 3)
     const add = await call('POST', '/api/chores', kevin, { title: 'OneOff Future', personId: kevinId, dueOn: future })
     expect(add.statusCode).toBe(201)
     const mine = (await instances()).filter((i) => i.choreTitle === 'OneOff Future')
-    expect(mine).toHaveLength(1)
-    expect(mine[0].dueOn).toBe(future) // …but its due date is preserved so the UI can say "due in 3 days"
-    expect(mine[0].status).toBe('pending')
-    expect((await meTotal()).total).toBeGreaterThanOrEqual(1)
+    expect(mine).toHaveLength(0) // not today's business yet
+    // …but its due date is preserved, and it does show on the day it lands
     const ahead = JSON.parse((await call('GET', `/api/chore-instances/today?date=${future}`, kevin)).body).instances as Inst[]
-    expect(ahead.filter((i) => i.choreTitle === 'OneOff Future')).toHaveLength(1)
+    const onItsDay = ahead.filter((i) => i.choreTitle === 'OneOff Future')
+    expect(onItsDay).toHaveLength(1)
+    expect(onItsDay[0].dueOn).toBe(future) // preserved so the UI can say "due in 3 days"
+    expect(onItsDay[0].status).toBe('pending')
     const past = shift(today, -5)
     const back = JSON.parse((await call('GET', `/api/chore-instances/today?date=${past}`, kevin)).body).instances as Inst[]
     expect(back.some((i) => i.choreTitle === 'OneOff Future')).toBe(false)
