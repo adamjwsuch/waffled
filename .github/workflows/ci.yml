@@ -32,7 +32,9 @@ on:
       - 'tests/**'
       - '.github/workflows/ci.yml'
   push:
-    branches: [main]
+    # `home` added by the fork: it is our deployment branch, so its pushes must be
+    # tested, not just main's. Upstream only ever pushed `main`.
+    branches: [main, home]
     paths:
       - 'apps/api/**'
       - 'apps/web/**'
