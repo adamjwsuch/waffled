@@ -50,8 +50,14 @@ Upstream's CI builds images from source; so does ours, unchanged:
   (multi-arch amd64+arm64) when a `v*` tag is pushed, or on manual dispatch.
 - Release with upstream's own script: `./waffled release X.Y.Z` (it bumps every version site,
   dates the changelog, commits `release: vX.Y.Z`, and tags). Run it on `home`.
-- **Tag convention for our releases:** `<upstream-version>-home.N`, e.g. `0.15.3-home.1`. The
-  upstream base stays legible, and a tag never collides with an upstream release.
+- **Tag convention for our releases:** `v<upstream-version>-home.N`, e.g. `v0.15.3-home.1`. The
+  upstream base stays legible, and a tag never collides with an upstream release. The leading
+  **`v` is required** — `publish-images.yml` triggers on `tags: ['v*']`, so a bare
+  `0.15.3-home.1` tag builds nothing.
+
+  Note that the release job of that workflow lifts the notes from a `## [<version>]` CHANGELOG
+  section; we ship no such section for a `-home.N` tag, so it falls back to auto-generated
+  notes. Harmless, and only the log says so.
 
 Deployments pull by tag (`WAFFLED_API_IMAGE=ghcr.io/<owner>/waffled-api:0.15.3-home.1`, same for
 caddy/backup) rather than building on the host — the reason this fork exists is that the old
