@@ -29,6 +29,36 @@ export async function setChoreRewardsEnabled(householdId: string, on: boolean): 
   return on
 }
 
+// Future-dated one-off chores stay out of Today until the day they are due
+// (settings.chores.hideFutureDated, default ON). Upstream surfaces a one-off the day it is
+// created ("buy a present, due Friday" appears on Monday); this household wants it to appear
+// on Friday. Recurring chores (c.rrule set) and overdue rollovers are unaffected — only the
+// `due_on > today` branch of the three Today queries is neutered, and it is *gated*, never
+// removed: in all three queries the timezone parameter is referenced only inside that branch,
+// so deleting it makes Postgres reject the bind ("supplies 4 parameters, but prepared
+// statement requires 3") and every chore endpoint 500s. The fourth `due_on > ($2::date - 60)`
+// occurrence — the streak lookback in streaksByChore — is deliberately untouched.
+export async function getHideFutureDated(householdId: string): Promise<boolean> {
+  const { rows } = await query<{ v: boolean | null }>(
+    `select (settings #>> '{chores,hideFutureDated}')::boolean as v from households where id = $1`,
+    [householdId]
+  )
+  return rows[0]?.v ?? true
+}
+
+export async function setHideFutureDated(householdId: string, on: boolean): Promise<boolean> {
+  await query(
+    `update households
+        set settings = coalesce(settings, '{}'::jsonb)
+                       || jsonb_build_object('chores',
+                            coalesce(settings->'chores', '{}'::jsonb)
+                            || jsonb_build_object('hideFutureDated', $2::boolean))
+      where id = $1`,
+    [householdId, on]
+  )
+  return on
+}
+
 interface ChoreInstanceRow extends QueryResultRow {
   id: string
   due_on: string | Date
@@ -203,6 +233,7 @@ interface SummaryRow extends QueryResultRow {
 // Per-person done/total for the day + balance in the default currency (the kiosk rings).
 export async function todaySummary(householdId: string, dueOn: string, tz = 'UTC'): Promise<PersonChoreSummary[]> {
   const defaultCurrency = await getDefaultCurrencyKey(householdId)
+  const hideFutureDated = await getHideFutureDated(householdId)
   const { rows } = await query<SummaryRow>(
     `select p.id, p.name, p.avatar_emoji, p.color_hex, p.member_type, p.is_admin,
             count(c.id) as total,
@@ -216,16 +247,16 @@ export async function todaySummary(householdId: string, dueOn: string, tz = 'UTC
          and (c.deleted_at is null or ci.status in ('done', 'awaiting'))
          and (ci.due_on = $2::date
               or (ci.due_on < $2::date and ci.status = 'pending' and c.rrule is null and c.rollover)
-              or (ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
+              or (not $5::boolean and ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
                   and (ci.created_at at time zone $4)::date <= $2::date))
-       -- v_person_balances groups by household too: joining on person_id alone would
-       -- pick up (and duplicate) a balance another household wrote for this person.
-       left join v_person_balances b
-         on b.person_id = p.id and b.household_id = $1 and b.currency = $3
+      -- v_person_balances groups by household too: joining on person_id alone would
+      -- pick up (and duplicate) a balance another household wrote for this person.
+      left join v_person_balances b
+        on b.person_id = p.id and b.household_id = $1 and b.currency = $3
       where p.household_id = $1 and p.deleted_at is null
       group by p.id, b.balance
       order by p.sort_order, p.created_at`,
-    [householdId, dueOn, defaultCurrency, tz]
+    [householdId, dueOn, defaultCurrency, tz, hideFutureDated]
   )
   return rows.map((r) => ({
     id: r.id,
@@ -243,6 +274,7 @@ export async function todaySummary(householdId: string, dueOn: string, tz = 'UTC
 // Unassigned pending instances someone can claim, kept separate from the person summaries
 // so consumers never mistake this bucket for a household member.
 export async function upForGrabsCount(householdId: string, dueOn: string, tz = 'UTC'): Promise<number> {
+  const hideFutureDated = await getHideFutureDated(householdId)
   const { rows } = await query<{ total: string }>(
     `select count(*) as total
        from chore_instances ci
@@ -253,9 +285,9 @@ export async function upForGrabsCount(householdId: string, dueOn: string, tz = '
         and ci.deleted_at is null
         and (ci.due_on = $2::date
              or (ci.due_on < $2::date and c.rrule is null and c.rollover)
-             or (ci.due_on > $2::date and c.rrule is null
+             or (not $4::boolean and ci.due_on > $2::date and c.rrule is null
                  and (ci.created_at at time zone $3)::date <= $2::date))`,
-    [householdId, dueOn, tz]
+    [householdId, dueOn, tz, hideFutureDated]
   )
   return Number(rows[0]?.total ?? 0)
 }
@@ -297,6 +329,7 @@ export async function listTodayInstances(
   tz = 'UTC',
   opts?: { streaks?: boolean; personId?: string }
 ): Promise<TodayInstance[]> {
+  const hideFutureDated = await getHideFutureDated(householdId)
   const { rows } = await query<QueryResultRow>(
     `select ci.id, ci.status, ci.reward_amount, ci.reward_currency, ci.person_id, ci.requires_approval,
             ci.requires_photo, ci.proof_storage_key, ci.had_proof, ci.due_on::text as due_on,
@@ -310,11 +343,11 @@ export async function listTodayInstances(
         and (c.deleted_at is null or ci.status in ('done', 'awaiting'))
         and (ci.due_on = $2::date
              or (ci.due_on < $2::date and ci.status = 'pending' and c.rrule is null and c.rollover)
-             or (ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
+             or (not $5::boolean and ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
                  and (ci.created_at at time zone $3)::date <= $2::date))
         and ($4::uuid is null or ci.person_id = $4::uuid)
       order by p.sort_order nulls last, ci.due_time_snapshot nulls last, ci.title_snapshot`,
-    [householdId, dueOn, tz, opts?.personId ?? null]
+    [householdId, dueOn, tz, opts?.personId ?? null, hideFutureDated]
   )
   const streaks = opts?.streaks === false ? new Map<string, number>() : await streaksByChore(householdId, dueOn)
   return rows.map((r) => ({

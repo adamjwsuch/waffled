@@ -32,6 +32,8 @@ import {
   clearStoredProofs,
   getChoreRewardsEnabled,
   setChoreRewardsEnabled,
+  getHideFutureDated,
+  setHideFutureDated,
   ChoreScopeError,
 } from './chores.service'
 import { getProofTtlDays, setProofTtlDays } from './chore-proof-cleanup.service'
@@ -72,25 +74,32 @@ function editTarget(body: Record<string, unknown>, res: Response): { scope: Chor
 }
 
 export function registerChoreRoutes(api: Api): void {
-  // Household chore settings — the photo-proof retention window and the rewards sub-toggle.
+  // Household chore settings — the photo-proof retention window, the rewards sub-toggle,
+  // and whether future-dated one-off chores are held back from Today.
   api.get('/api/chores/settings', tenantRoute(async (tenant) => ({
     proofTtlDays: await getProofTtlDays(tenant.householdId),
     rewards: await getChoreRewardsEnabled(tenant.householdId),
+    hideFutureDated: await getHideFutureDated(tenant.householdId),
   })))
 
   api.put('/api/chores/settings', adminRoute(async (tenant, req: Request, res: Response) => {
-    const body = (req.body ?? {}) as { proofTtlDays?: unknown; rewards?: unknown }
+    const body = (req.body ?? {}) as { proofTtlDays?: unknown; rewards?: unknown; hideFutureDated?: unknown }
     if (body.proofTtlDays !== undefined && (typeof body.proofTtlDays !== 'number' || !Number.isFinite(body.proofTtlDays) || body.proofTtlDays < 0)) {
       return res.status(400).json({ error: 'BadRequest', message: 'proofTtlDays must be a non-negative number' })
     }
     if (body.rewards !== undefined && typeof body.rewards !== 'boolean') {
       return res.status(400).json({ error: 'BadRequest', message: 'rewards must be a boolean' })
     }
+    if (body.hideFutureDated !== undefined && typeof body.hideFutureDated !== 'boolean') {
+      return res.status(400).json({ error: 'BadRequest', message: 'hideFutureDated must be a boolean' })
+    }
     if (typeof body.proofTtlDays === 'number') await setProofTtlDays(tenant.householdId, body.proofTtlDays)
     if (typeof body.rewards === 'boolean') await setChoreRewardsEnabled(tenant.householdId, body.rewards)
+    if (typeof body.hideFutureDated === 'boolean') await setHideFutureDated(tenant.householdId, body.hideFutureDated)
     return {
       proofTtlDays: await getProofTtlDays(tenant.householdId),
       rewards: await getChoreRewardsEnabled(tenant.householdId),
+      hideFutureDated: await getHideFutureDated(tenant.householdId),
     }
   }))
 

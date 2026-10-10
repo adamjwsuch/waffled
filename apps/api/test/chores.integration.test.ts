@@ -1216,3 +1216,53 @@ describe('one-off chores + rollover (carry-forward)', () => {
     expect((await instances()).some((i) => i.choreTitle === 'NoRoll')).toBe(false)
   })
 })
+
+// settings.chores.hideFutureDated (fork) — a one-off chore dated in the future stays out of
+// Today until its day, and the household can turn that off per household.
+describe('future-dated one-off chores (settings.chores.hideFutureDated)', () => {
+  const today = todayInTz(TZ)
+  let futureChoreId = ''
+
+  const instanceChoreIds = async (): Promise<string[]> => {
+    const body = JSON.parse((await call('GET', '/api/chore-instances/today', kevin)).body)
+    return (body.instances as { choreId: string }[]).map((i) => i.choreId)
+  }
+
+  const setHide = async (on: boolean): Promise<boolean> => {
+    const res = await call('PUT', '/api/chores/settings', kevin, { hideFutureDated: on })
+    expect(res.statusCode).toBe(200)
+    return (JSON.parse(res.body) as { hideFutureDated: boolean }).hideFutureDated
+  }
+
+  beforeAll(async () => {
+    const created = await call('POST', '/api/chores', kevin, {
+      title: 'Buy a present',
+      personId: kevinId,
+      dueOn: shiftDate(today, 3),
+    })
+    expect(created.statusCode).toBe(201)
+    futureChoreId = (JSON.parse(created.body).chore as { id: string }).id
+  })
+
+  afterAll(async () => {
+    await setHide(true)
+  })
+
+  it('defaults to on, and holds a future-dated one-off out of Today', async () => {
+    const settings = JSON.parse((await call('GET', '/api/chores/settings', kevin)).body) as { hideFutureDated: boolean }
+    expect(settings.hideFutureDated).toBe(true)
+    expect(await instanceChoreIds()).not.toContain(futureChoreId)
+  })
+
+  it('shows it when the setting is off, and hides it again when it is back on', async () => {
+    expect(await setHide(false)).toBe(false)
+    expect(await instanceChoreIds()).toContain(futureChoreId)
+    expect(await setHide(true)).toBe(true)
+    expect(await instanceChoreIds()).not.toContain(futureChoreId)
+  })
+
+  it('rejects a non-boolean setting value', async () => {
+    const res = await call('PUT', '/api/chores/settings', kevin, { hideFutureDated: 'yes' })
+    expect(res.statusCode).toBe(400)
+  })
+})

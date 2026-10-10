@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Future-dated one-off chores stay out of Today until they are due** (`settings.chores.hideFutureDated`,
+  default on; admin-settable via `PUT /api/chores/settings`). A one-off chore created on Monday for
+  Friday no longer appears in Today all week — it appears on Friday. Recurring chores and overdue
+  rollovers are unaffected.
+
 ### Changed
 
 ### Fixed
