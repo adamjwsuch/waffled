@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switch a card off to hide it, and save to your own phone or, if you may, to the household
   default. Reset puts it back. A card added by a later release is never lost to a saved
   layout, and saving from the phone leaves the cards the phone does not draw where they were.
+- **The phone's Today now draws Lists, Goals and Rhythms too** — eight of the server's ten
+  cards, everything but Pantry and Family Night. Lists pins one list per device, same as the
+  kiosk's; Goals is the hero gradient card (ring, streak, a contribution row per person, a Log
+  button) with the kiosk's own log sheet; Rhythms renders nothing on a quiet day and otherwise
+  offers "I did it" or "Book a time", with the kiosk's own booking sheet. All three reuse the
+  kiosk's hooks and sheets rather than forking them.
 - **Future-dated one-off chores stay out of Today until they are due** (`settings.chores.hideFutureDated`,
   default on; admin-settable via `PUT /api/chores/settings`). A one-off chore created on Monday for
   Friday no longer appears in Today all week — it appears on Friday. Recurring chores and overdue
