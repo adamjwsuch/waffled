@@ -7,6 +7,11 @@ Every Waffled feature and whether it's supported on each surface.
 
 - **Web / Kiosk** — the React app (same build powers the desktop browser and the kitchen
   tablet kiosk).
+- **Web (planner)** — the *same* web build, laid out for a phone: bottom tab bar, capture
+  button, one column. A device picks it by installing the PWA on a phone-sized screen, by
+  opening a link with `?experience=planner`, or by pressing the switch in the planner's
+  header (which also takes a device back to the kiosk). See
+  [Kiosk & ambient display](#kiosk--ambient-display).
 - **iPhone** — the native iOS app's *personal-planner* experience (`AppRoot` + bottom tab
   bar; one person checking their day).
 - **iPad** — the **same** universal app's *family-hub* experience (`KioskRoot` → a left nav
@@ -50,6 +55,8 @@ Legend: ✅ supported · 🟡 partial · 🚧 planned · ❌ not supported / N-A
 
 | Feature | Web / Kiosk | iPhone | iPad | Status |
 | --- | :---: | :---: | :---: | --- |
+| **Phone planner layout** (bottom tab bar, capture button, one-column Today) | ✅ Web (planner) | ✅ N/A (native planner) | ❌ | 🟡 First pass — the shell, Today, the capture button and the tab bar run on the same cards and tokens; the other tabs show the existing screens for now, and their deeper screens still open in the kiosk chrome |
+| Which experience a **web** device runs (kiosk ↔ planner) | ✅ | ❌ N/A | ✅ (iPad = kiosk) | ✅ Done — an installed PWA on a phone-sized screen is the planner, a link can force either with `?experience=`, and the choice sticks |
 | **Kiosk device pairing** (admin code or "use this device") | ✅ | ❌ N/A | ✅ | ✅ Done — iPad: admin one-tap *promote* + pair-by-code (opt-in; iPhone never a kiosk) |
 | **Profile picker** (Netflix-style; per-profile real session) | ✅ | ❌ N/A | ✅ | ✅ Done — `KioskProfilePickerView`; device-token model, claim mints a per-person session |
 | Optional per-person **PIN** to open a profile (throttled) | ✅ | ❌ N/A | ✅ | ✅ Done — `KioskPinPad` (4–8 digits, "N tries left" on 401, lockout countdown on 429) |
