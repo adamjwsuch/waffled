@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState } from 'react'
-import { Outlet } from 'react-router'
+import { Suspense, createContext, useContext, useMemo, useState } from 'react'
+import { Outlet, useLocation } from 'react-router'
 import { CaptureBar } from '../kiosk/components/CaptureBar'
+import { ScreenBoundary } from '../kiosk/components/ScreenBoundary'
 import { useHousehold } from '../lib/api'
 import { PlannerTabBar } from './PlannerTabBar'
 import '../styles/planner.css'
@@ -20,12 +21,23 @@ export function PlannerShell() {
   const { household } = useHousehold()
   const [captureSignal, setCaptureSignal] = useState(0)
   const openCapture = useMemo(() => () => setCaptureSignal((n) => n + 1), [])
+  const { pathname } = useLocation()
 
   return (
     <CaptureOpener.Provider value={openCapture}>
       <div className="wf-planner wf">
         <main className="planner-screen">
-          <Outlet />
+          {/* Every tab is a code-split screen, and most of them are the kiosk's own.
+              Keep the same pair the kiosk uses, inside the chrome: a chunk that never
+              arrives (offline after a deploy is the usual way) shows the placeholder
+              instead of unmounting the phone down to a white screen. The fallback is
+              empty for the same reason it is in KioskLayout — over LAN the chunk lands
+              within a frame or two. */}
+          <ScreenBoundary key={pathname}>
+            <Suspense fallback={null}>
+              <Outlet />
+            </Suspense>
+          </ScreenBoundary>
         </main>
         <PlannerTabBar household={household} onCapture={openCapture} />
         <CaptureBar hideTrigger openSignal={captureSignal} />
