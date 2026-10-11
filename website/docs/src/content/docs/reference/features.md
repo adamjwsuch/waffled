@@ -55,7 +55,7 @@ Legend: ✅ supported · 🟡 partial · 🚧 planned · ❌ not supported / N-A
 
 | Feature | Web / Kiosk | iPhone | iPad | Status |
 | --- | :---: | :---: | :---: | --- |
-| **Phone planner layout** (bottom tab bar, capture button, one-column Today) | ✅ Web (planner) | ✅ N/A (native planner) | ❌ | 🟡 First pass — the shell, Today, the capture button and the tab bar run on the same cards and tokens; the other tabs show the existing screens for now, and their deeper screens still open in the kiosk chrome |
+| **Phone planner layout** (bottom tab bar, capture button, one-column Today, phone-shaped Calendar, Meals and Family) | ✅ Web (planner) | ✅ N/A (native planner) | ❌ | 🟡 The shell plus Today, Calendar, Meals and Family carry the iOS app's own card specs (agenda rows with avatars, the split tonight card, countdown tiles, the chores + grocery pair, the month grid with event chips, a card per day with plan slots, the member row over module tiles); deeper screens — a recipe, a person, an event, the recipe picker — still open in the kiosk chrome |
 | Which experience a **web** device runs (kiosk ↔ planner) | ✅ | ❌ N/A | ✅ (iPad = kiosk) | ✅ Done — an installed PWA on a phone-sized screen is the planner, a link can force either with `?experience=`, and the choice sticks |
 | **Kiosk device pairing** (admin code or "use this device") | ✅ | ❌ N/A | ✅ | ✅ Done — iPad: admin one-tap *promote* + pair-by-code (opt-in; iPhone never a kiosk) |
 | **Profile picker** (Netflix-style; per-profile real session) | ✅ | ❌ N/A | ✅ | ✅ Done — `KioskProfilePickerView`; device-token model, claim mints a per-person session |
