@@ -124,10 +124,16 @@ describe('PlannerLists (index)', () => {
 })
 
 describe('PlannerListDetail', () => {
-  it('hands off whole to the grocery board for the grocery list', () => {
+  it('hands off whole to the grocery board for the grocery list, under its own header', () => {
     lists = [{ id: 'l1', name: 'Groceries', emoji: null, listType: 'grocery', isAutoBuilt: true, sortMode: 'manual', itemCount: 0 }]
     wrapAt('/planner/lists/l1')
     expect(screen.getByText('Grocery board')).toBeTruthy()
+    // GroceryBoard's own back button registers into a kiosk-only topbar slot that
+    // never renders in the planner — this screen supplies a real one of its own.
+    expect(screen.getByText('🛒 Groceries')).toBeTruthy()
+    fireEvent.click(screen.getByText('Lists'))
+    expect(screen.queryByText('Grocery board')).toBeNull()
+    expect(screen.getByText('Groceries')).toBeTruthy()
   })
 
   it('shows a custom list sectioned, and lets you check an item off', async () => {
