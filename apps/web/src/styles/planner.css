@@ -162,10 +162,12 @@
   margin: 0 var(--planner-gutter);
   min-height: 52px;
   padding: 11px 12px;
-  border: 1px solid var(--hair);
+  /* The 1pt hairline is drawn inside the shape (SwiftUI strokes inset), so it costs no
+     height: 11 + the 30pt spark + 11 = the app's 52pt pill, not 54. */
+  border: 0;
   border-radius: 999px;
   background: var(--card);
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sh-1), inset 0 0 0 1px var(--hair);
   text-align: left;
   cursor: pointer;
 }
