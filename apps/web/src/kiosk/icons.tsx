@@ -33,6 +33,11 @@ const PATHS = {
   // The two experiences, so a device can say which one it is running: the counter/wall
   // display (kiosk) and the phone (planner). See src/planner/mode.ts.
   display: '<rect x="2.5" y="4" width="19" height="12.5" rx="2.4"/><path d="M8.5 20.5h7M12 16.5v4"/>',
+  // sliders — the Customize Today button (SF Symbols slider.horizontal.3), and grip — the
+  // drag handle in the Customize list (the grabber the app's List shows in edit mode).
+  sliders:
+    '<path d="M4 7h4M12 7h8M4 12h10M18 12h2M4 17h2M10 17h10"/><circle cx="10" cy="7" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="17" r="2"/>',
+  grip: '<path d="M9 7h6M9 12h6M9 17h6"/>',
   phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.6"/><path d="M10.6 18.6h2.8"/>',
 } as const
 

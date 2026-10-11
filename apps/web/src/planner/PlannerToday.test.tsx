@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlannerShell } from './PlannerShell'
 import { PlannerToday, dateLabel, greetingFor } from './PlannerToday'
-import { EXPERIENCE_KEY, resetExperienceCache } from './mode'
+import { resetExperienceCache } from './mode'
 
 // Today is the screen the planner exists for, so these tests hold the phone shape in
 // place: the greeting header with a way back to the kiosk, the capture pill, and one
@@ -27,6 +27,15 @@ vi.mock('./phone/TodayCards', () => ({
 const modules = { meals: true, chores: true, goals: true, lists: true }
 let householdModules: Record<string, boolean> = modules
 
+// The saved phone layout: the order and the cards switched off. Default = the server's
+// canonical order with nothing hidden; a test can move/hide cards before rendering.
+const saveSpy = vi.fn(async () => {})
+const resetSpy = vi.fn(async () => {})
+let layoutOrder: string[] = ['agenda', 'countdowns', 'tonight', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms']
+let layoutHidden: string[] = []
+let canEditFamily = false
+let layoutSource: 'family' | 'user' | 'default' = 'default'
+
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
   return {
@@ -35,6 +44,16 @@ vi.mock('../lib/api', async (importOriginal) => {
       household: { id: 'h', name: 'Home', timezone: 'Europe/London', weekStart: 'monday', location: null, ownerPersonId: null, settings: { modules: householdModules } },
       person: { id: 'p1', name: 'Alex', avatarEmoji: '🦊', colorHex: '#2F7FED' },
       loading: false,
+    }),
+    useMobileTodayLayout: () => ({
+      resolved: { order: layoutOrder, hidden: layoutHidden },
+      source: layoutSource,
+      canEditFamily,
+      loading: false,
+      error: false,
+      save: saveSpy,
+      reset: resetSpy,
+      refetch: () => {},
     }),
   }
 })
@@ -72,6 +91,12 @@ describe('PlannerToday', () => {
     localStorage.clear()
     resetExperienceCache()
     householdModules = modules
+    layoutOrder = ['agenda', 'countdowns', 'tonight', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms']
+    layoutHidden = []
+    canEditFamily = false
+    layoutSource = 'default'
+    saveSpy.mockClear()
+    resetSpy.mockClear()
   })
 
   it('shows the date, the greeting and the phone cards', () => {
@@ -108,11 +133,72 @@ describe('PlannerToday', () => {
     expect(screen.getByTestId('composer')).toHaveAttribute('data-signal', '1')
   })
 
-  it('switches this device back to the kiosk and lands on its home', () => {
+  it('orders the cards the way the saved layout orders them', () => {
+    layoutOrder = ['tonight', 'agenda', 'countdowns', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms']
     renderPlanner()
-    fireEvent.click(screen.getByRole('button', { name: /switch to the kiosk view/i }))
-    expect(localStorage.getItem(EXPERIENCE_KEY)).toBe('kiosk')
-    expect(screen.getByText('Kiosk home')).toBeInTheDocument()
+    const cards = screen.getByTestId('planner-cards')
+    const keys = [...cards.querySelectorAll('[data-testid^="card-"]')].map((el) => el.getAttribute('data-testid'))
+    expect(keys).toEqual(['card-tonight', 'card-agenda', 'card-countdowns', 'card-chores', 'card-grocery'])
+  })
+
+  it('drops a card the layout hides', () => {
+    layoutHidden = ['tonight']
+    renderPlanner()
+    expect(screen.queryByTestId('card-tonight')).not.toBeInTheDocument()
+    expect(screen.getByTestId('card-agenda')).toBeInTheDocument()
+  })
+
+  it('gives a hidden small card the full width rather than an empty half row', () => {
+    layoutHidden = ['chores']
+    renderPlanner()
+    expect(screen.queryByTestId('planner-small-cards')).not.toBeInTheDocument()
+    expect(screen.getByTestId('card-grocery')).toBeInTheDocument()
+  })
+
+  it('opens Customize Today from the header circle', () => {
+    renderPlanner()
+    fireEvent.click(screen.getByTestId('planner-customize'))
+    expect(screen.getByRole('dialog', { name: 'Customize Today' })).toBeInTheDocument()
+    // Only the cards the phone can actually draw are offered.
+    expect(screen.getByText("Tonight's dinner")).toBeInTheDocument()
+    expect(screen.queryByText('Pantry')).not.toBeInTheDocument()
+  })
+
+  it('saves the arrangement back into the full card order, leaving the rest in place', async () => {
+    renderPlanner()
+    fireEvent.click(screen.getByTestId('planner-customize'))
+    // Move Agenda below Countdowns with the grabber's keyboard affordance.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Agenda' }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByTestId('planner-capture')
+    expect(saveSpy).toHaveBeenCalledWith('user', {
+      order: ['countdowns', 'agenda', 'tonight', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms'],
+      hidden: [],
+    })
+  })
+
+  it('hides a card that was switched off in the sheet', async () => {
+    renderPlanner()
+    fireEvent.click(screen.getByTestId('planner-customize'))
+    fireEvent.click(screen.getByRole('switch', { name: 'Countdowns' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByTestId('planner-capture')
+    expect(saveSpy).toHaveBeenCalledWith('user', { order: expect.any(Array), hidden: ['countdowns'] })
+  })
+
+  it('lists a card that is switched off, so it can be switched back on', () => {
+    layoutHidden = ['tonight']
+    renderPlanner()
+    fireEvent.click(screen.getByTestId('planner-customize'))
+    expect(screen.getByRole('switch', { name: "Tonight's dinner" })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('resets the layout from the sheet', async () => {
+    renderPlanner()
+    fireEvent.click(screen.getByTestId('planner-customize'))
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
+    await screen.findByTestId('planner-capture')
+    expect(resetSpy).toHaveBeenCalledWith('user')
   })
 
   it('sends the avatar to the family tab', () => {

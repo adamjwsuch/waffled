@@ -44,6 +44,11 @@ const household = {
 const capabilities = ['chore.manage', 'chore.approve', 'goal.manage', 'reward.grant', 'reward.manage']
 const permissionRow = Object.fromEntries(capabilities.map((c) => [c, false]))
 
+// The phone layout the mocked api serves, in the server's canonical order; a spec may
+// reorder it through the Customize sheet and watch Today follow.
+const CANONICAL_ORDER = ['agenda', 'countdowns', 'tonight', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms']
+let savedLayout: { order: string[]; hidden: string[] } = { order: [...CANONICAL_ORDER], hidden: [] }
+
 async function mockApi(page: Page) {
   // One row per card, so the geometry test measures real cards rather than the empty
   // states (an empty agenda still renders, but a row is what the reference measured).
@@ -96,6 +101,17 @@ async function mockApi(page: Page) {
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'disabled' }) })
       return
     }
+    else if (path === '/api/today-layout/mobile') {
+      // Served the way the real one behaves: a saved layout per scope, and a PUT that comes
+      // back reconciled, so a spec can reorder on the phone and watch Today follow.
+      if (route.request().method() === 'PUT') {
+        const sent = route.request().postDataJSON() as { scope: string; layout: { order: string[]; hidden: string[] } }
+        if (sent.scope === 'user') savedLayout = sent.layout
+        body = { ok: true, layout: sent.layout }
+      } else {
+        body = { resolved: savedLayout, family: null, user: savedLayout, source: 'user', cards: [...savedLayout.order], canEditFamily: true }
+      }
+    }
 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
@@ -114,6 +130,7 @@ async function signIn(page: Page, then: string) {
 }
 
 test.beforeEach(async ({ page }) => {
+  savedLayout = { order: [...CANONICAL_ORDER], hidden: [] }
   await mockApi(page)
 })
 
@@ -209,13 +226,47 @@ test('the planner runs on one column, with its own way back to the kiosk', async
   await expect(page).toHaveURL(/\/planner\/family$/)
   await expect(page.getByRole('navigation', { name: 'Planner' })).toBeVisible()
 
-  // And the switch takes the device back to the kiosk shell.
+  // And the switch takes the device back to the kiosk shell — it lives with the other
+  // device-level things on the Family tab, next to the module tiles.
   await page.goto('/?experience=planner')
-  await page.getByRole('button', { name: 'Switch to the kiosk view' }).click()
+  await page.getByRole('link', { name: 'Family' }).click()
+  await expect(page).toHaveURL(/\/planner\/family$/)
+  await page.getByText('Kiosk view').click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('.planner-tabbar')).toHaveCount(0)
   await page.goto('/')
   await expect(page).toHaveURL(/\/$/)
+})
+
+test('the phone reorders Today the way the app does, and the order sticks', async ({ page }) => {
+  await signIn(page, '/?experience=planner')
+
+  // Out of the box the cards follow the saved layout: agenda first.
+  const column = page.locator('.planner-cards')
+  await expect(column.locator('.p-card').first()).toHaveClass(/p-agenda/)
+
+  // The header's slider button is the app's Customize Today.
+  await page.getByTestId('planner-customize').click()
+  const sheet = page.getByRole('dialog', { name: 'Customize Today' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.locator('.p-cust-row')).toHaveCount(5)
+
+  // Grabber keyboard affordance: move Agenda below Countdowns, then hide Chores.
+  await sheet.getByRole('button', { name: 'Reorder Agenda' }).press('ArrowDown')
+  await sheet.getByRole('button', { name: 'Reorder Agenda' }).press('ArrowDown')
+  await sheet.getByRole('switch', { name: 'Chores' }).click()
+  await sheet.getByRole('button', { name: 'Save' }).click()
+  await expect(sheet).toHaveCount(0)
+
+  // The save went to the phone layout, folded into the full card order: the five cards the
+  // phone draws in their new arrangement, the other five in the slots they already had.
+  expect(savedLayout.order.slice(0, 5)).toEqual(['countdowns', 'tonight', 'agenda', 'chores', 'grocery'])
+  expect(savedLayout.order.slice(5)).toEqual(['lists', 'pantry', 'goals', 'familyNight', 'rhythms'])
+  expect(savedLayout.hidden).toEqual(['chores'])
+
+  // And Today renders what was saved.
+  await expect(column.locator('.p-card').first()).toContainText('Countdowns')
+  await expect(column.locator('.p-small-label', { hasText: 'Chores' })).toHaveCount(0)
 })
 
 test('the planner’s capture pill opens the same composer the kiosk uses', async ({ page }) => {
