@@ -250,7 +250,9 @@ test('the phone reorders Today the way the app does, and the order sticks', asyn
   await page.getByTestId('planner-customize').click()
   const sheet = page.getByRole('dialog', { name: 'Customize Today' })
   await expect(sheet).toBeVisible()
-  await expect(sheet.locator('.p-cust-row')).toHaveCount(5)
+  // Seven, not the server's ten: the phone has no Pantry or Family Night card (they are
+  // deliberately not built), and this household has the Rhythms module off — its default.
+  await expect(sheet.locator('.p-cust-row')).toHaveCount(7)
 
   // Grabber keyboard affordance: move Agenda below Countdowns, then hide Chores.
   await sheet.getByRole('button', { name: 'Reorder Agenda' }).press('ArrowDown')
@@ -259,10 +261,10 @@ test('the phone reorders Today the way the app does, and the order sticks', asyn
   await sheet.getByRole('button', { name: 'Save' }).click()
   await expect(sheet).toHaveCount(0)
 
-  // The save went to the phone layout, folded into the full card order: the five cards the
-  // phone draws in their new arrangement, the other five in the slots they already had.
-  expect(savedLayout.order.slice(0, 5)).toEqual(['countdowns', 'tonight', 'agenda', 'chores', 'grocery'])
-  expect(savedLayout.order.slice(5)).toEqual(['lists', 'pantry', 'goals', 'familyNight', 'rhythms'])
+  // The save went to the phone layout, folded into the full card order: the cards the phone
+  // draws in their new arrangement, and Pantry / Family Night — which it does not draw —
+  // left exactly where the app had them.
+  expect(savedLayout.order).toEqual(['countdowns', 'tonight', 'agenda', 'chores', 'grocery', 'lists', 'pantry', 'goals', 'familyNight', 'rhythms'])
   expect(savedLayout.hidden).toEqual(['chores'])
 
   // And Today renders what was saved.
