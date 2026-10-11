@@ -139,4 +139,10 @@ describe('PlannerFamily', () => {
     expect(screen.getByText('Recipes')).toBeInTheDocument()
     expect(screen.queryByText('Pantry')).not.toBeInTheDocument()
   })
+
+  it('carries the way back to the kiosk view', () => {
+    wrap(<PlannerFamily />)
+    fireEvent.click(screen.getByText('Kiosk view'))
+    expect(localStorage.getItem('waffled.experience')).toBe('kiosk')
+  })
 })

@@ -38,6 +38,7 @@ export * from './photos'
 export * from './media'
 export * from './capture'
 export * from './today-layout'
+export * from './today-layout-mobile'
 export * from './auth'
 
 import { personsApi } from './persons'

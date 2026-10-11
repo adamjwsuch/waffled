@@ -4,6 +4,7 @@ import { useChoresToday, useHousehold, usePersons } from '../../lib/api'
 import { moduleEnabled } from '../../lib/modules'
 import '../../styles/planner-screens.css'
 import { PLANNER_ROOT } from '../mode'
+import { useSwitchExperience } from '../useExperience'
 import { PhoneAvatar, PhoneCard } from './primitives'
 
 /** FamilyView's phone shape: a serif "Family" title over a row of 64pt member columns
@@ -15,7 +16,8 @@ interface Tile {
   key: string
   emoji: string
   name: string
-  to: string
+  to?: string
+  action?: () => void
 }
 
 export function PlannerFamily() {
@@ -23,6 +25,7 @@ export function PlannerFamily() {
   const { persons } = usePersons()
   const { people } = useChoresToday()
   const navigate = useNavigate()
+  const switchExperience = useSwitchExperience()
 
   const choresOn = moduleEnabled(household, 'chores')
   const choresById = new Map(people.map((p) => [p.id, p]))
@@ -34,6 +37,18 @@ export function PlannerFamily() {
     ...(moduleEnabled(household, 'lists') ? [{ key: 'lists', emoji: '📝', name: 'Lists', to: `${PLANNER_ROOT}/lists` }] : []),
     ...(moduleEnabled(household, 'pantry') ? [{ key: 'pantry', emoji: '🥫', name: 'Pantry', to: `${PLANNER_ROOT}/pantry` }] : []),
     { key: 'photos', emoji: '🖼️', name: 'Photos', to: `${PLANNER_ROOT}/family` },
+    // A device-level thing rather than a place in the app: which experience this screen is
+    // running. It used to be the second circle in Today's header, which now customises Today
+    // the way the app's does.
+    {
+      key: 'kiosk',
+      emoji: '🖥️',
+      name: 'Kiosk view',
+      action: () => {
+        switchExperience('kiosk')
+        navigate('/', { replace: true })
+      },
+    },
   ]
 
   return (
@@ -69,7 +84,11 @@ export function PlannerFamily() {
       <div className="p-tiles">
         {tiles.map((t) => (
           <PhoneCard key={t.key} padding={14}>
-            <button type="button" className="p-tile-btn" onClick={() => navigate(t.to)}>
+            <button
+              type="button"
+              className="p-tile-btn"
+              onClick={() => (t.action ? t.action() : navigate(t.to ?? '/'))}
+            >
               <span className="p-tile-emoji">{t.emoji}</span>
               <span className="p-tile-name">{t.name}</span>
               <Icon name="cr" />
