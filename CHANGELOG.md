@@ -26,7 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   serif, countdown tiles, and chores + grocery as a pair of small cards. Calendar, Meals and
   Family get phone shapes too — a month grid with event chips over the selected day's
   agenda, a card per day of the week with "Plan breakfast/lunch/dinner" in each empty slot,
-  and a member row over the module tiles. The planner reuses the app's hooks, screens and design tokens rather than
+  and a member row over the module tiles. **Lists gets its own phone screens too** — an
+  index of your lists and templates, tapping one into a sectioned detail (or straight into
+  the grocery board, for the auto-built list) — rather than reaching the kiosk's Lists
+  screen, which always opened grocery first with no way back to the others. The planner
+  reuses the app's hooks, screens and design tokens rather than
   forking them: capture is the *same* composer, so a phrase like "dentist Tuesday 4pm"
   works identically in both shapes. The planner header carries a one-tap way to this
   device's kiosk view, on the Family tab beside the module tiles.
@@ -51,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+- **The phone's "Lists" no longer jumps straight to Grocery.** It used to render the
+  kiosk's Lists screen unmodified, which auto-opens the grocery board the instant lists
+  load — a convenience that only makes sense next to the kiosk's always-visible sidebar.
+  The phone now gets its own index (your lists + templates, tap one to open it) and its
+  own detail screen; Grocery still opens in one tap, but from its own card and its own
+  row, not by accident of being the only thing the old screen ever showed. The grocery
+  board itself, opened from the phone, no longer renders squeezed into a 236px sidebar
+  column meant for a kiosk-sized screen.
 
 ## [0.15.3] - 2026-10-07
 

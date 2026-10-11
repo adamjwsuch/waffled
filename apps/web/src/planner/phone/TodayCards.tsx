@@ -234,17 +234,22 @@ export function ChoresPhoneCard() {
   )
 }
 
-/** TodayView.groceryCard — the right small card: label, big count, "items to buy". */
+/** TodayView.groceryCard — the right small card: label, big count, "items to buy".
+ *  Opens the grocery list's own board directly (its id, not the Lists index) — the
+ *  same one-tap shortcut the kiosk's auto-select used to give you by accident of
+ *  being the only list on screen; now it is the card's own target instead. */
 export function GroceryPhoneCard() {
   const { items } = useGrocery()
+  const { lists } = useLists()
   const navigate = useNavigate()
   const remaining = items.filter((i) => !i.checked).length
+  const groceryId = lists.find((l) => l.listType === 'grocery')?.id
 
   return (
     <PhoneCard padding={15} className="p-small">
       <button
         type="button"
-        onClick={() => navigate(`${PLANNER_ROOT}/lists`)}
+        onClick={() => navigate(groceryId ? `${PLANNER_ROOT}/lists/${groceryId}` : `${PLANNER_ROOT}/lists`)}
         style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', padding: 0, border: 0, background: 'none', font: 'inherit', textAlign: 'left', color: 'inherit', cursor: 'pointer' }}
       >
         <span className="p-small-label">Grocery</span>
