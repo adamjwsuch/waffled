@@ -135,7 +135,7 @@ test('the planner keeps the phone geometry the reference was measured on', async
   const pill = await page.locator('.planner-capture').boundingBox()
   const header = await page.locator('.planner-header').boundingBox()
   const cards = await page.locator('.planner-cards').boundingBox()
-  const card = page.locator('.planner-cards > .card').first()
+  const card = page.locator('.p-card').first()
   const cardBox = await card.boundingBox()
   const radius = await card.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)
   const gap = await page.locator('.planner-cards').evaluate((el) => getComputedStyle(el).rowGap)
@@ -173,7 +173,7 @@ test('the planner keeps the phone geometry the reference was measured on', async
   expect(fab!.height).toBe(54)
   expect(Math.abs(bar!.y - fab!.y - 9)).toBeLessThanOrEqual(2) // raised ~9pt
   expect(Math.abs((fab!.x + fab!.width / 2) - bar!.width / 2)).toBeLessThanOrEqual(1)
-  expect(pill!.height).toBe(50)
+  expect(pill!.height).toBe(52)
   // The gutter is carried by the pill's margin and the cards column's padding, so the
   // header and the cards column are full-width elements — assert the content, not them.
   expect(Math.round(pill!.x)).toBe(18)
@@ -194,7 +194,7 @@ test('the planner runs on one column, with its own way back to the kiosk', async
   await expect(bar.getByRole('link', { name: 'Family' })).toHaveAttribute('href', '/planner/family')
 
   // One column: every card starts at the same x and the next one starts below the last.
-  const boxes = await page.locator('.planner-cards > .card').evaluateAll((els) =>
+  const boxes = await page.locator('.p-card').evaluateAll((els) =>
     els.map((el) => el.getBoundingClientRect()).map((r) => ({ x: Math.round(r.x), bottom: Math.round(r.bottom), top: Math.round(r.top) }))
   )
   expect(boxes.length).toBeGreaterThanOrEqual(2)

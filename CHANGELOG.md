@@ -21,7 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   while every wall display, counter iPad and desktop browser tab keeps the kiosk it has
   always had. A link can choose either (`?experience=planner` / `?experience=kiosk`) and
   the choice is remembered, and the planner header carries a one-tap switch back to the
-  kiosk. The planner reuses the app's screens, cards and design tokens rather than
+  kiosk. Inside Today the phone shows the app's own cards rather than the kiosk's: the
+  agenda as divider rows with the owner's avatar, the split tonight card with the dish in
+  serif, countdown tiles, and chores + grocery as a pair of small cards. Calendar, Meals and
+  Family get phone shapes too — a month grid with event chips over the selected day's
+  agenda, a card per day of the week with "Plan breakfast/lunch/dinner" in each empty slot,
+  and a member row over the module tiles. The planner reuses the app's hooks, screens and design tokens rather than
   forking them: capture is the *same* composer, so a phrase like "dentist Tuesday 4pm"
   works identically in both shapes.
 - **Future-dated one-off chores stay out of Today until they are due** (`settings.chores.hideFutureDated`,

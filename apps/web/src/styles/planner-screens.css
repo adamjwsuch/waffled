@@ -1,0 +1,625 @@
+/* The planner's three non-Today screens — Calendar, Meals, Family.
+ *
+ * Same rule as planner-cards.css: these are transcriptions of the iOS screens they mirror,
+ * not a second design system. Every colour is a token from styles/waffled.css; every number
+ * (chip height 16, day number in a 22×18 box, 40pt meal tile, 36pt header circles, 46pt
+ * member avatar, 42pt module tile) is the number the SwiftUI source uses. Where the phone
+ * app has a mode the web does not implement yet, that is called out in the component, not
+ * faked here. */
+
+/* ---------------------------------------------------------------- shared */
+
+.planner-screen-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 18px;
+}
+
+/* The kiosk's glyphs are outlines, and the kiosk's own stylesheet is what strokes them.
+   These screens are the planner's own, so they carry the same three properties themselves
+   rather than inheriting a rule scoped to kiosk components (without this the icons render
+   as unfilled black shapes). */
+.planner-screen-body svg,
+.p-card svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.p-empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+.p-today-pill {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------- calendar */
+
+.p-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.p-cal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.p-cal-title h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.p-cal-title span {
+  font-family: var(--serif);
+  font-size: 25px;
+  color: var(--ink-3);
+}
+
+.p-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.p-cal-nav button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--sh-1);
+}
+
+.p-cal-nav button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.p-cal-nav .p-cal-add {
+  background: var(--primary);
+  color: var(--on-accent);
+}
+
+.p-cal-grid {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  padding: 8px;
+}
+
+.p-cal-band {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  border-bottom: 1px solid var(--hair-2);
+}
+
+.p-cal-gutter {
+  width: 18px;
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--ink-3) 70%, transparent);
+  text-align: right;
+  padding-right: 3px;
+  border-right: 1px solid var(--hair-2);
+}
+
+.p-cal-band .p-cal-gutter {
+  border-right: 0;
+}
+
+.p-cal-weekday {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.p-cal-row {
+  display: flex;
+  border-bottom: 1px solid var(--hair-2);
+}
+
+.p-cal-row:last-child {
+  border-bottom: 0;
+}
+
+.p-cal-cell {
+  flex: 1;
+  min-width: 0;
+  /* PhoneMonthGrid's row is sized for a day number plus four chip lanes
+     (18 + 3 + 4×16 + 3×2), so four chips fit without spilling into the row below. */
+  min-height: 91px;
+  padding-top: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--hair-2);
+  font-family: var(--sans);
+}
+
+.p-cal-day {
+  width: 22px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  border-radius: 8px;
+}
+
+.p-cal-cell.out .p-cal-day {
+  color: color-mix(in srgb, var(--ink-3) 60%, transparent);
+}
+
+.p-cal-cell.today .p-cal-day {
+  background: var(--primary);
+  color: var(--on-accent);
+}
+
+.p-cal-cell.sel .p-cal-day {
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+
+.p-cal-chip {
+  width: 100%;
+  height: 16px;
+  line-height: 16px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--on-accent);
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-cal-more {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--ink-3);
+  padding-left: 3px;
+}
+
+.p-cal-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.p-cal-agenda-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.p-cal-agenda-rel {
+  font-family: var(--serif);
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.p-cal-agenda-date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------- meals */
+
+.p-meals-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.p-meals-head > button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--sh-1);
+}
+
+.p-meals-head > button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.p-meals-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.p-meals-title strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.p-meals-jump {
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.p-meal-day-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.p-meal-day-head > span:first-child {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--ink-2);
+}
+
+.p-meal-day-head > span.today {
+  color: var(--primary);
+}
+
+.p-meal-day-head .num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.p-meal-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.p-meal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.p-meal-main {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  font-family: var(--sans);
+}
+
+.p-meal-tile {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.p-meal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.p-meal-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-meal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.p-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+  background: var(--panel);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.p-meal-menu-wrap {
+  position: relative;
+  flex: none;
+}
+
+.p-meal-menu {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+}
+
+.p-meal-menu svg {
+  width: 16px;
+  height: 16px;
+}
+
+.p-menu {
+  position: absolute;
+  right: 0;
+  top: 34px;
+  z-index: 5;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--sh-3);
+}
+
+.p-menu button {
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.p-menu button.danger {
+  color: var(--danger, #c0392b);
+}
+
+.p-plan-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 11px 0;
+  background: var(--card-2);
+  border: 1px dashed var(--hair);
+  border-radius: var(--r-md, 14px);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.p-plan-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.p-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: auto;
+  background: var(--bg);
+  padding: 0 16px 96px;
+}
+
+.p-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.p-sheet-head button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.p-sheet-head button svg {
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+}
+
+/* ---------------------------------------------------------------- family */
+
+.p-fam-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.p-fam-head h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.p-fam-head button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+}
+
+.p-fam-head button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.p-people {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-top: 14px;
+  scrollbar-width: none;
+}
+
+.p-people::-webkit-scrollbar {
+  display: none;
+}
+
+.p-person {
+  width: 64px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+}
+
+.p-person-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-person-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-person-add {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--hair);
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.p-person-add svg {
+  width: 18px;
+  height: 18px;
+}
+
+.p-fam-label {
+  padding-top: 8px;
+  padding-bottom: 11px;
+}
+
+.p-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.p-tile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--sans);
+}
+
+.p-tile-emoji {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+}
+
+.p-tile-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.p-tile-btn svg {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+}

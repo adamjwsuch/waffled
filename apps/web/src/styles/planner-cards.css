@@ -1,0 +1,394 @@
+/* The phone card kit (`planner/phone/primitives.tsx` + `TodayCards.tsx`).
+ *
+ * Every number here is transcribed from the iOS design system it mirrors — the card
+ * surface from `DesignSystem/Components.swift` (`WaffledCard` padding 17 / radius `rLG`,
+ * `Avatar` emoji at 0.52×, `SectionLabel` 12.5 heavy tracked 0.6, the 1pt `hair2` rule),
+ * the rows from `Features/Shared/EventRow.swift` (4×30 bar, 15pt semibold title, 12pt
+ * time, 30pt avatar), `Features/Calendar/Countdowns.swift` (32pt tile radius 9, 14pt
+ * semibold title, 11pt date, 12.5pt bold days) and `Features/Today/TodayView.swift`
+ * (the split tonight card's 104pt media block, the chores/grocery small cards at
+ * padding 15).
+ *
+ * Colours come from `styles/waffled.css` tokens, which the iOS `WF` theme ports 1:1 —
+ * including the gradients (`--g-pasta` is exactly the tonight card's peach pair).
+ */
+
+.p-card {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+/* ── card header ─────────────────────────────────────────────────────────────── */
+
+.p-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.p-head-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.p-head-title-sm {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.p-head-gap {
+  flex: 1 1 auto;
+  min-width: 6px;
+}
+
+.p-head-meta {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.p-chev {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  color: var(--ink-3);
+}
+
+/* ── atoms ───────────────────────────────────────────────────────────────────── */
+
+.p-av,
+.p-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  line-height: 1;
+}
+
+.p-av {
+  border-radius: 50%;
+}
+
+.p-tile {
+  border-radius: 9px;
+}
+
+.p-section-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.p-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.p-hair {
+  height: 1px;
+  background: var(--hair-2);
+}
+
+.p-progress {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.p-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+/* ── agenda rows (EventRow) ──────────────────────────────────────────────────── */
+
+.p-event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 0;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.p-event.past {
+  opacity: 0.5;
+}
+
+.p-event-bar {
+  width: 4px;
+  height: 30px;
+  border-radius: 99px;
+  flex: none;
+}
+
+.p-event-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.p-event-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.p-event-time {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.p-event-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.p-event-empty {
+  display: block;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink-3);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ── countdown rows ──────────────────────────────────────────────────────────── */
+
+.p-count-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.p-count-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--sans);
+  text-align: left;
+}
+
+.p-count-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.p-count-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.p-count-date {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.p-count-days {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.p-count-days.soon {
+  color: var(--primary-d);
+}
+
+.p-count-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.p-count-empty {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.p-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ai);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.p-add-more {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* ── tonight's meal (split media card) ───────────────────────────────────────── */
+
+.p-tonight {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.p-tonight-media {
+  width: 104px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  /* The app's own meal gradient; `--g-pasta` is the identical peach pair. */
+  background: var(--g-pasta);
+}
+
+.p-tonight-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 15px;
+  min-width: 0;
+}
+
+.p-tonight-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--person-4);
+}
+
+.p-tonight-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.p-tonight-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ── the small cards (chores + grocery, side by side) ────────────────────────── */
+
+.p-2up {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.p-small {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 108px;
+}
+
+.p-small-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.p-small-n {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.p-small-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.p-chore-avs {
+  display: flex;
+  align-items: center;
+}
+
+.p-chore-avs .p-av {
+  margin-left: -8px;
+  border: 2px solid var(--card);
+}
+
+.p-chore-avs .p-av:first-child {
+  margin-left: 0;
+}
+
+.p-chore-line {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.p-chore-line .stars {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.p-spacer {
+  flex: 1 1 auto;
+}

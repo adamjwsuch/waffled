@@ -7,17 +7,22 @@ import { EXPERIENCE_KEY, resetExperienceCache } from './mode'
 
 // Today is the screen the planner exists for, so these tests hold the phone shape in
 // place: the greeting header with a way back to the kiosk, the capture pill, and one
-// column of the *same* cards the kiosk uses (stubbed here — their data has its own
-// suite) with the module gates respected.
+// column of the app's cards — including the chores + grocery pair, which the phone puts
+// side by side where the kiosk stacks them. The cards themselves are stubbed here (they
+// call the app's data hooks and have their own suite in ./phone); what is asserted is
+// which cards Today shows and that the module gates are respected.
 
 vi.mock('../kiosk/components/CaptureBar', () => ({
   CaptureBar: ({ openSignal }: { openSignal?: number }) => <div data-testid="composer" data-signal={openSignal} />,
 }))
 
-vi.mock('../kiosk/components/AgendaCard', () => ({ AgendaCard: () => <div data-testid="card-agenda" /> }))
-vi.mock('../kiosk/components/CountdownsCard', () => ({ CountdownsCard: () => <div data-testid="card-countdowns" /> }))
-vi.mock('../kiosk/components/ChoresCard', () => ({ ChoresCard: () => <div data-testid="card-chores" /> }))
-vi.mock('../kiosk/components/MealsColumn', () => ({ TonightCardSlot: () => <div data-testid="card-tonight" /> }))
+vi.mock('./phone/TodayCards', () => ({
+  AgendaPhoneCard: () => <div data-testid="card-agenda" />,
+  CountdownsPhoneCard: () => <div data-testid="card-countdowns" />,
+  TonightPhoneCard: () => <div data-testid="card-tonight" />,
+  ChoresPhoneCard: () => <div data-testid="card-chores" />,
+  GroceryPhoneCard: () => <div data-testid="card-grocery" />,
+}))
 
 const modules = { meals: true, chores: true, goals: true, lists: true }
 let householdModules: Record<string, boolean> = modules
@@ -28,7 +33,7 @@ vi.mock('../lib/api', async (importOriginal) => {
     ...actual,
     useHousehold: () => ({
       household: { id: 'h', name: 'Home', timezone: 'Europe/London', weekStart: 'monday', location: null, ownerPersonId: null, settings: { modules: householdModules } },
-      person: { id: 'p1', name: 'Alex', avatarEmoji: '🦊' },
+      person: { id: 'p1', name: 'Alex', avatarEmoji: '🦊', colorHex: '#2F7FED' },
       loading: false,
     }),
   }
@@ -69,7 +74,7 @@ describe('PlannerToday', () => {
     householdModules = modules
   })
 
-  it('shows the date, the greeting and one column of the kiosk cards', () => {
+  it('shows the date, the greeting and the phone cards', () => {
     renderPlanner()
     expect(screen.getByText(dateLabel(new Date()))).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/good (morning|afternoon|evening)/i)
@@ -77,14 +82,24 @@ describe('PlannerToday', () => {
     expect(screen.getByTestId('card-countdowns')).toBeInTheDocument()
     expect(screen.getByTestId('card-tonight')).toBeInTheDocument()
     expect(screen.getByTestId('card-chores')).toBeInTheDocument()
+    expect(screen.getByTestId('card-grocery')).toBeInTheDocument()
+  })
+
+  it('pairs chores and grocery on one row, the way the app does', () => {
+    renderPlanner()
+    const row = screen.getByTestId('planner-small-cards')
+    expect(row.children).toHaveLength(2)
+    expect(screen.getByTestId('card-chores').parentElement).toBe(row)
+    expect(screen.getByTestId('card-grocery').parentElement).toBe(row)
   })
 
   it('drops the cards whose module is off', () => {
-    householdModules = { meals: false, chores: false, goals: true, lists: true }
+    householdModules = { meals: false, chores: false, goals: true, lists: false }
     renderPlanner()
     expect(screen.getByTestId('card-agenda')).toBeInTheDocument()
+    expect(screen.getByTestId('card-countdowns')).toBeInTheDocument()
     expect(screen.queryByTestId('card-tonight')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('card-chores')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('planner-small-cards')).not.toBeInTheDocument()
   })
 
   it('opens the shared capture composer from the pill', () => {
