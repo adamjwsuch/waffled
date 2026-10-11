@@ -9,7 +9,10 @@ import {
   AgendaPhoneCard,
   ChoresPhoneCard,
   CountdownsPhoneCard,
+  GoalsPhoneCard,
   GroceryPhoneCard,
+  ListsPhoneCard,
+  RhythmsPhoneCard,
   TonightPhoneCard,
 } from './phone/TodayCards'
 import { cardRows, mergeHidden, mergeOrder, visibleCards } from './phone/todayOrder'
@@ -31,15 +34,17 @@ export function dateLabel(now: Date): string {
   return now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
-/** The cards this screen can draw. The server knows ten; the other five (Lists, Pantry,
- *  Goals, Family Night, Rhythms) are cards the phone has not been given yet, so they are
- *  skipped here rather than faked, and the sheet offers only what Today can actually show. */
+/** The cards this screen can draw. Pantry and Family Night are skipped on purpose — this
+ *  household doesn't use either — so the sheet offers only what Today can actually show. */
 const PHONE_CARDS: Record<string, ComponentType> = {
   agenda: AgendaPhoneCard,
   countdowns: CountdownsPhoneCard,
   tonight: TonightPhoneCard,
   chores: ChoresPhoneCard,
   grocery: GroceryPhoneCard,
+  lists: ListsPhoneCard,
+  goals: GoalsPhoneCard,
+  rhythms: RhythmsPhoneCard,
 }
 
 const SUPPORTED = new Set(Object.keys(PHONE_CARDS))

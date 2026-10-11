@@ -22,9 +22,12 @@ vi.mock('./phone/TodayCards', () => ({
   TonightPhoneCard: () => <div data-testid="card-tonight" />,
   ChoresPhoneCard: () => <div data-testid="card-chores" />,
   GroceryPhoneCard: () => <div data-testid="card-grocery" />,
+  ListsPhoneCard: () => <div data-testid="card-lists" />,
+  GoalsPhoneCard: () => <div data-testid="card-goals" />,
+  RhythmsPhoneCard: () => <div data-testid="card-rhythms" />,
 }))
 
-const modules = { meals: true, chores: true, goals: true, lists: true }
+const modules = { meals: true, chores: true, goals: true, lists: true, rhythms: true }
 let householdModules: Record<string, boolean> = modules
 
 // The saved phone layout: the order and the cards switched off. Default = the server's
@@ -138,7 +141,9 @@ describe('PlannerToday', () => {
     renderPlanner()
     const cards = screen.getByTestId('planner-cards')
     const keys = [...cards.querySelectorAll('[data-testid^="card-"]')].map((el) => el.getAttribute('data-testid'))
-    expect(keys).toEqual(['card-tonight', 'card-agenda', 'card-countdowns', 'card-chores', 'card-grocery'])
+    // Pantry and Family Night stay off (this household has neither module on); the other
+    // nine of the ten server cards, including the three built this pass, all render.
+    expect(keys).toEqual(['card-tonight', 'card-agenda', 'card-countdowns', 'card-chores', 'card-grocery', 'card-lists', 'card-goals', 'card-rhythms'])
   })
 
   it('drops a card the layout hides', () => {

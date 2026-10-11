@@ -1,9 +1,19 @@
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { CardHead, EmojiTile, Hair, PhoneAvatar, PhoneCard, ProgressBar } from './primitives'
-import { useChoresToday, useCountdowns, useEventsToday, useGrocery, useMealsWeek } from '../../lib/api'
+import { CardHead, EmojiTile, GoalRing, Hair, PhoneAvatar, PhoneCard, ProgressBar } from './primitives'
+import {
+  useChoresToday, useCountdowns, useEventsToday, useGrocery, useMealsWeek,
+  useLists, useListDetail, groceryApi, type ListItem, type ListSummary,
+  useGoals, usePersons, useHousehold, can,
+  goalDisplayProgress, goalDisplayTarget, goalFraction, goalWeekTargetLabel, fmtGoalNum,
+  type Goal,
+  useRhythms, useRhythmAttention, rhythmsApi, cadenceLabel, dueLabel, periodLabel, type AttentionItem,
+} from '../../lib/api'
 import { countdownsApi, type AgendaEvent } from '../../lib/api'
 import { useEventColor } from '../../lib/event-color'
+import { TODAY_LIST_PICK_KEY } from '../../kiosk/components/ListCard'
+import { LogModal } from '../../kiosk/components/LogModal'
+import { BookRhythmModal } from '../../kiosk/components/BookRhythmModal'
 import { PLANNER_ROOT } from '../mode'
 
 // The phone's Today cards — the React twin of TodayView.swift's card set, laid out the way
@@ -258,4 +268,363 @@ export function daysLabel(daysLeft: number, sleeps: boolean): string {
   if (daysLeft <= 0) return 'Today!'
   if (daysLeft === 1) return sleeps ? '1 sleep' : 'Tomorrow'
   return `${daysLeft} ${sleeps ? 'sleeps' : 'days'}`
+}
+
+// ── Lists ─────────────────────────────────────────────────────────────────────────
+//
+// TodayListCard.swift — pins ONE of the household's custom lists so the hardware
+// run / packing list sits on Today next to everything else. Which list is pinned is
+// a per-DEVICE choice, not household config, so it is read from the same localStorage
+// key the kiosk's ListCard uses: the phone and the kiosk board on one device should
+// agree on which list Today shows, and a separate key would just make them drift.
+
+/** The list card only ever shows unfinished items, so there's nothing to check against
+ *  "lists the phone shouldn't offer" beyond what the kiosk's own card excludes: the
+ *  auto-built grocery board (that has its own card) and saved templates (not real lists). */
+function pickableLists(lists: ListSummary[]): ListSummary[] {
+  return lists.filter((l) => l.listType !== 'grocery' && l.listType !== 'template' && !l.isAutoBuilt)
+}
+
+export function ListsPhoneCard() {
+  const navigate = useNavigate()
+  const { lists, loading: listsLoading, error: listsError } = useLists()
+  const [pick, setPick] = useState<string | null>(
+    () => (typeof localStorage !== 'undefined' ? localStorage.getItem(TODAY_LIST_PICK_KEY) : null)
+  )
+  const pickable = pickableLists(lists)
+  const active = pickable.find((l) => l.id === pick) ?? pickable[0] ?? null
+  const { items, loading, error } = useListDetail(active?.id ?? null)
+
+  const [done, setDone] = useState<Set<string>>(new Set())
+
+  function choose(id: string) {
+    setPick(id)
+    try {
+      localStorage.setItem(TODAY_LIST_PICK_KEY, id)
+    } catch {
+      // private mode / storage disabled — the choice just won't persist
+    }
+    setDone(new Set())
+  }
+
+  async function check(item: ListItem) {
+    setDone((prev) => new Set(prev).add(item.id))
+    try {
+      await groceryApi.setItemChecked(item.id, true)
+    } catch {
+      setDone((prev) => {
+        const next = new Set(prev)
+        next.delete(item.id)
+        return next
+      })
+    }
+  }
+
+  const open = items.filter((i) => !i.checked && !done.has(i.id))
+
+  return (
+    <PhoneCard padding={16} className="p-list">
+      <div className="p-list-head">
+        <button
+          type="button"
+          className="p-list-title"
+          disabled={!active}
+          onClick={() => active && navigate(`${PLANNER_ROOT}/lists/${active.id}`)}
+        >
+          <span className="p-head-title">{active ? `${active.emoji ?? '📝'} ${active.name}` : 'Lists'}</span>
+          {active ? (
+            <svg viewBox="0 0 24 24" className="p-chev" aria-hidden="true">
+              <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : null}
+        </button>
+        {pickable.length > 1 ? (
+          <select
+            className="p-list-pick"
+            aria-label="Which list"
+            value={active?.id ?? ''}
+            onChange={(e) => choose(e.target.value)}
+          >
+            {pickable.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+
+      {pickable.length === 0 ? (
+        <div className="p-list-empty">
+          {listsError ? "Couldn't load your lists — pull to refresh or sign in again."
+            : listsLoading ? 'Loading…'
+              : "No lists yet — make one in Lists and it'll show up here."}
+        </div>
+      ) : active && loading ? (
+        <div className="p-list-empty">Loading…</div>
+      ) : active && error ? (
+        <div className="p-list-empty">Couldn't load the list — pull to refresh or sign in again.</div>
+      ) : open.length === 0 ? (
+        <div className="p-list-empty">All done here. 🎉</div>
+      ) : (
+        open.map((item, i) => (
+          <Fragment key={item.id}>
+            <button type="button" className="p-list-row" onClick={() => check(item)} aria-label={`Check off ${item.name}`}>
+              <span className="p-list-check" aria-hidden="true" />
+              <span className="p-list-name">
+                {item.name}
+                {item.quantity ? <span className="p-list-qty"> ({item.quantity})</span> : null}
+              </span>
+            </button>
+            {i < open.length - 1 ? <Hair /> : null}
+          </Fragment>
+        ))
+      )}
+    </PhoneCard>
+  )
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────────
+//
+// GoalHeroCard.swift — one featured goal, big: a ring, the title, this week's target,
+// a streak, a contribution row per participant, and a "Log" button. Same pick key as
+// the kiosk's GoalSpotlightCard so the phone and the kiosk board agree which goal
+// Today shows on this device, and the same resolve order: an explicit pick, else the
+// scope's spotlight, else its featured, else the first goal in scope, else any goal.
+const GOAL_PICK_KEY = 'waffled.todayGoalPick'
+
+/** GoalHeroCard.scopeLabel — who the goal belongs to, not always "Family". */
+function scopeLabel(g: Goal, myPersonId: string | undefined, everyone: Set<string>): string {
+  const parts = new Set(g.participants.map((p) => p.personId))
+  if (everyone.size > 1 && [...everyone].every((id) => parts.has(id))) return 'Family Goal'
+  if (parts.size === 1) {
+    const only = g.participants[0]
+    if (myPersonId && only.personId === myPersonId) return 'My Goal'
+    if (only) return `${only.name}'s Goal`
+  }
+  return parts.size === 0 ? 'Goal' : 'Group Goal'
+}
+
+function resolveGoal(goals: Goal[], pick: string, me: string | undefined, everyone: Set<string>): Goal | null {
+  if (pick !== 'mine' && pick !== 'family') {
+    const chosen = goals.find((g) => g.id === pick)
+    if (chosen) return chosen
+  }
+  const mine = (g: Goal) => !!me && g.participants.length > 0 && new Set(g.participants.map((p) => p.personId)).size === 1 && g.participants[0].personId === me
+  const family = (g: Goal) => everyone.size > 1 && [...everyone].every((id) => g.participants.some((p) => p.personId === id))
+  const inScope = pick === 'family' ? family : mine
+  return (
+    goals.find((g) => inScope(g) && g.isSpotlight) ??
+    goals.find((g) => inScope(g) && g.isFeatured) ??
+    goals.find(inScope) ??
+    goals.find((g) => g.isSpotlight) ??
+    goals.find((g) => g.isFeatured) ??
+    goals[0] ??
+    null
+  )
+}
+
+export function GoalsPhoneCard() {
+  const navigate = useNavigate()
+  const { goals, loading, refetch } = useGoals(null)
+  const { person } = useHousehold()
+  const { persons } = usePersons()
+  const me = person?.id
+  const everyone = new Set(persons.map((p) => p.id))
+  const [pick, setPick] = useState<string>(() => (typeof localStorage !== 'undefined' && localStorage.getItem(GOAL_PICK_KEY)) || 'mine')
+  const [logging, setLogging] = useState<Goal | null>(null)
+  const canManageGoals = can(person, 'goal.manage')
+
+  function choose(v: string) {
+    setPick(v)
+    try {
+      localStorage.setItem(GOAL_PICK_KEY, v)
+    } catch {
+      // private mode / storage disabled
+    }
+  }
+
+  const g = resolveGoal(goals, pick, me, everyone)
+
+  if (!g) {
+    return (
+      <PhoneCard padding={15}>
+        <CardHead title="Goals" chevron onClick={() => navigate(`${PLANNER_ROOT}/goals`)} />
+        <div className="p-goal-empty">{loading ? 'Loading…' : 'Set a family goal →'}</div>
+      </PhoneCard>
+    )
+  }
+
+  const tag = g.isSpotlight ? '🌟 Spotlight' : g.isFeatured ? '📌 Pinned' : scopeLabel(g, me, everyone)
+  const frac = goalFraction(g)
+  const target = goalDisplayTarget(g)
+  const progressLabel = fmtGoalNum(goalDisplayProgress(g))
+  const maxProg = Math.max(1, ...g.participants.map((p) => p.progress), 1)
+
+  return (
+    <PhoneCard padding={15} className="p-goal-hero">
+      <div className="p-goal-top">
+        <span className="p-goal-scope">{tag}</span>
+        <span className="p-head-gap" />
+        <button type="button" className="p-goal-seeall" onClick={() => navigate(`${PLANNER_ROOT}/goals`)} aria-label="See all goals">
+          <svg viewBox="0 0 24 24" className="p-chev" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+      <button type="button" className="p-goal-body" onClick={() => navigate(`${PLANNER_ROOT}/goals/${g.id}`)}>
+        <GoalRing value={frac}>
+          <span className="p-goal-ring-n">{progressLabel}</span>
+          {target != null ? <span className="p-goal-ring-t">of {fmtGoalNum(target)}{g.unit ? ` ${g.unit}` : ''}</span> : null}
+        </GoalRing>
+        <span className="p-goal-info">
+          <span className="p-goal-title">{g.emoji ?? '🎯'} {g.title}</span>
+          {goalWeekTargetLabel(g) ? <span className="p-goal-week">{goalWeekTargetLabel(g)}</span> : null}
+          {g.streakDays > 0 ? <span className="p-goal-streak">🔥 {g.streakDays}-day streak</span> : null}
+        </span>
+      </button>
+      {g.participants.length > 0 ? (
+        <div className="p-goal-contribs">
+          {g.participants.map((p) => (
+            <div key={p.personId} className="p-goal-contrib">
+              <PhoneAvatar emoji={p.avatarEmoji} colorHex={p.colorHex} size={26} />
+              <span className="p-goal-contrib-main">
+                <span className="p-goal-contrib-row">
+                  <span className="p-goal-contrib-name">{p.name}</span>
+                  <span className="p-goal-contrib-n">{fmtGoalNum(p.progress)}{p.target != null ? ` / ${fmtGoalNum(p.target)}` : ''}{g.unit ? ` ${g.unit}` : ''}</span>
+                </span>
+                <ProgressBar value={maxProg > 0 ? p.progress / maxProg : 0} tint="#fff" />
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <button type="button" className="p-goal-log" onClick={() => setLogging(g)}>
+        + Log {g.unit || 'progress'}
+      </button>
+      {goals.length > 1 ? (
+        <select className="p-goal-switch" aria-label="Show on Today" value={pick} onChange={(e) => choose(e.target.value)}>
+          <option value="mine">My spotlight</option>
+          <option value="family">Family spotlight</option>
+          {goals.map((go) => (
+            <option key={go.id} value={go.id}>{go.emoji ?? '🎯'} {go.title}</option>
+          ))}
+        </select>
+      ) : null}
+      {logging ? (
+        <LogModal
+          goal={logging}
+          canLogOthers={canManageGoals}
+          canDelete={canManageGoals || (logging.participants.length === 1 && logging.participants[0].personId === me)}
+          selfPersonId={me ?? null}
+          onClose={() => setLogging(null)}
+          onSaved={() => { setLogging(null); refetch() }}
+          onDeleted={() => { setLogging(null); refetch() }}
+        />
+      ) : null}
+    </PhoneCard>
+  )
+}
+
+// ── Rhythms ───────────────────────────────────────────────────────────────────────
+//
+// RhythmsTodayCard.swift — renders NOTHING when the register is quiet, same rule as
+// Tonight with no dinner planned: most days nothing needs attention, and an empty
+// card every morning is how a board stops being read. A due row offers "I did it";
+// an unscheduled row offers "Book a time" / "Put it back" plus a quiet "Handled".
+const RHYTHM_CAP = 4
+
+function rhythmSort(items: AttentionItem[]): AttentionItem[] {
+  return [...items].sort((a, b) => {
+    const rank = (i: AttentionItem) => (i.kind === 'due' && i.overdue ? 0 : i.kind === 'due' ? 1 : 2)
+    const d = rank(a) - rank(b)
+    return d !== 0 ? d : a.rhythm.title.localeCompare(b.rhythm.title)
+  })
+}
+
+function rhythmUrgent(item: AttentionItem): boolean {
+  if (item.kind === 'due') return !!item.overdue
+  const end = new Date(`${item.windowEnd}T00:00:00`)
+  const now = new Date()
+  const days = Math.round((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
+  return days <= 1
+}
+
+function RhythmRow({ item, onChanged, onBook }: { item: AttentionItem; onChanged: () => void; onBook: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const urgent = rhythmUrgent(item)
+
+  async function markDone() {
+    if (busy || item.kind !== 'due') return
+    setBusy(true)
+    try {
+      await rhythmsApi.complete(item.rhythm.id)
+      onChanged()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const series = item.kind === 'unscheduled' && item.rhythm.autoSchedule && !item.hasSeries
+  const subtitle = item.kind === 'due'
+    ? `${dueLabel(item.dueAt, !!item.overdue)} · ${cadenceLabel(item.rhythm.every)}`
+    : `${periodLabel(item.windowEnd)}${series ? ' · the series needs putting back' : ''}`
+
+  return (
+    <div className="p-rhy-row">
+      <EmojiTile emoji={item.rhythm.emoji ?? (item.kind === 'unscheduled' ? '🗓️' : '🔁')} size={32} radius={9} />
+      <span className="p-rhy-main">
+        <span className="p-rhy-title">{item.rhythm.title}</span>
+        <span className={`p-rhy-sub${urgent ? ' urgent' : ''}`}>{subtitle}</span>
+      </span>
+      {item.kind === 'due' ? (
+        <button type="button" className={`p-rhy-act${urgent ? ' urgent' : ''}`} disabled={busy} onClick={markDone}>
+          {busy ? '…' : 'I did it'}
+        </button>
+      ) : (
+        <button type="button" className={`p-rhy-act${urgent ? ' urgent' : ''}`} onClick={onBook}>
+          {series ? 'Put it back' : 'Book'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function RhythmsPhoneCard() {
+  const navigate = useNavigate()
+  const { items, loading, refetch } = useRhythmAttention()
+  // Only asked for once there's something to show — a quiet register shouldn't cost a
+  // second request on every morning it has nothing to say. See RhythmsCard (kiosk).
+  const nonEmpty = !loading && items.length > 0
+  return nonEmpty ? <RhythmsBlock items={items} refetch={refetch} onSeeAll={() => navigate(`${PLANNER_ROOT}/rhythms`)} /> : null
+}
+
+function RhythmsBlock({ items, refetch, onSeeAll }: { items: AttentionItem[]; refetch: () => void; onSeeAll: () => void }) {
+  const { rhythms } = useRhythms()
+  const [booking, setBooking] = useState<Extract<AttentionItem, { kind: 'unscheduled' }> | null>(null)
+  const sorted = rhythmSort(items)
+  const shown = sorted.slice(0, RHYTHM_CAP)
+  const more = sorted.length - shown.length
+
+  return (
+    <PhoneCard padding={15} className="p-rhy">
+      <button type="button" className="p-rhy-head" onClick={onSeeAll}>
+        <span className="p-head-title-sm">🔁 Rhythms</span>
+        <span className="p-rhy-count">{items.length === 1 ? '1 wants attention' : `${items.length} want attention`}</span>
+        <span className="p-head-gap" />
+        <span className="p-rhy-all">{rhythms.length ? `All ${rhythms.length}` : 'All'}</span>
+        <svg viewBox="0 0 24 24" className="p-chev" aria-hidden="true">
+          <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {shown.map((item) => (
+        <RhythmRow
+          key={item.rhythm.id}
+          item={item}
+          onChanged={refetch}
+          onBook={() => { if (item.kind === 'unscheduled') setBooking(item) }}
+        />
+      ))}
+      {more > 0 ? <div className="p-rhy-more">+{more} more</div> : null}
+      {booking ? <BookRhythmModal item={booking} onClose={() => setBooking(null)} onBooked={refetch} /> : null}
+    </PhoneCard>
+  )
 }

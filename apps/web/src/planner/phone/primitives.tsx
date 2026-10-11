@@ -148,3 +148,45 @@ export function ProgressBar({ value, tint = 'var(--primary)' }: { value: number;
     </div>
   )
 }
+
+/** `GoalRing` — the featured-goal ring: a stroked circle with the value in the middle. On the
+ *  phone it is 78pt with an 8pt line, white on white-at-25% (GoalHeroCard.body), and whatever
+ *  it wraps is capped at 54pt wide so a long figure cannot push the stroke out. */
+export function GoalRing({
+  value,
+  size = 78,
+  lineWidth = 8,
+  stroke = '#fff',
+  track = 'rgba(255,255,255,0.25)',
+  children,
+}: {
+  value: number
+  size?: number
+  lineWidth?: number
+  stroke?: string
+  track?: string
+  children?: ReactNode
+}) {
+  const r = (size - lineWidth) / 2
+  const c = 2 * Math.PI * r
+  const frac = Math.max(0, Math.min(1, value))
+  return (
+    <div className="p-ring" style={{ width: size, height: size }}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={lineWidth} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={lineWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${c * frac} ${c}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      {children ? <span className="p-ring-in">{children}</span> : null}
+    </div>
+  )
+}
