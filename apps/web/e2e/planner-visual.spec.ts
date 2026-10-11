@@ -193,8 +193,11 @@ test('the planner runs on one column, with its own way back to the kiosk', async
   await expect(bar.getByRole('link', { name: 'Calendar' })).toHaveAttribute('href', '/planner/calendar')
   await expect(bar.getByRole('link', { name: 'Family' })).toHaveAttribute('href', '/planner/family')
 
-  // One column: every card starts at the same x and the next one starts below the last.
-  const boxes = await page.locator('.p-card').evaluateAll((els) =>
+  // One column: the cards that make up the column start at the same x and the next starts
+  // below the last. The chores + grocery card is the exception the app itself makes — it is
+  // a two-up row inside one full-width slot — so the assertion is on the column's own
+  // children (the .p-2up row's cards are nested inside it, not siblings).
+  const boxes = await page.locator('.planner-cards > .p-card').evaluateAll((els) =>
     els.map((el) => el.getBoundingClientRect()).map((r) => ({ x: Math.round(r.x), bottom: Math.round(r.bottom), top: Math.round(r.top) }))
   )
   expect(boxes.length).toBeGreaterThanOrEqual(2)
