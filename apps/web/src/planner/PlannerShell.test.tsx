@@ -81,4 +81,24 @@ describe('PlannerShell', () => {
     // Today, Calendar, [capture], Meals, Family — the button keeps the centre.
     expect(slots).toEqual(['Today', 'Calendar', 'planner-fab', 'Meals', 'Family'])
   })
+
+  it('keeps the phone frame when a tab fails to load, instead of blanking', () => {
+    const Boom = () => {
+      throw new Error('chunk never arrived')
+    }
+    render(
+      <MemoryRouter initialEntries={['/planner/broken']}>
+        <Routes>
+          <Route path="/planner" element={<PlannerShell />}>
+            <Route path="broken" element={<Boom />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    )
+    // React logs the caught error; the assertion is that the bar and composer are
+    // still there — a phone that white-screens on one bad chunk is unusable.
+    expect(screen.getByRole('navigation', { name: 'Planner' })).toBeInTheDocument()
+    expect(screen.getByTestId('composer')).toBeInTheDocument()
+    expect(screen.getByText(/couldn’t load/i)).toBeInTheDocument()
+  })
 })

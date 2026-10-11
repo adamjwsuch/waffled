@@ -45,6 +45,13 @@ const capabilities = ['chore.manage', 'chore.approve', 'goal.manage', 'reward.gr
 const permissionRow = Object.fromEntries(capabilities.map((c) => [c, false]))
 
 async function mockApi(page: Page) {
+  // One row per card, so the geometry test measures real cards rather than the empty
+  // states (an empty agenda still renders, but a row is what the reference measured).
+  const day = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const date = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+  const at = (h: number, m: number) => `${date}T${pad(h)}:${pad(m)}:00`
+
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
@@ -62,10 +69,29 @@ async function mockApi(page: Page) {
     else if (path === '/api/weather') body = { weather: null }
     else if (path === '/api/updates') body = { enabled: false, updateAvailable: false }
     else if (path === '/api/calendar/status') body = { connected: false, configured: false }
-    else if (path === '/api/chores/today') body = { people: [], upForGrabs: 0 }
+    else if (path === '/api/events/today') body = {
+      date,
+      events: [{
+        id: 'e1', title: 'Dentist', startsAt: at(9, 0), endsAt: at(9, 45), allDay: false,
+        location: null, personId: person.id, personName: person.name, personColor: person.colorHex,
+        personEmoji: person.avatarEmoji, participants: [],
+      }],
+    }
+    else if (path === '/api/chores/today') body = {
+      people: [{ id: person.id, name: person.name, avatarEmoji: person.avatarEmoji, colorHex: person.colorHex, memberType: 'adult', isAdmin: true, total: 3, done: 1, stars: 4 }],
+      upForGrabs: 0,
+    }
     else if (path === '/api/chores/settings') body = { rewards: false, proofTtlDays: 3 }
-    else if (path === '/api/countdowns') body = { countdowns: [], sleeps: false }
-    else if (path === '/api/meals/plan-week') body = { entries: [], weekStart: url.searchParams.get('week') ?? '' }
+    else if (path === '/api/countdowns') body = {
+      countdowns: [{ id: 'c1', title: 'Trip to the coast', date: '2026-12-01', daysLeft: 21, source: 'manual', emoji: '📆', color: null, personId: null }],
+      sleeps: false,
+    }
+    else if (path === '/api/meals/week' || path === '/api/meals/plan-week') body = {
+      entries: [{
+        id: 'm1', date, mealType: 'dinner', title: 'Pork chops', recipeId: null, mealId: null, cook: null,
+        recipe: { title: 'Pork chops', emoji: '🍽️', category: 'dinner', prepTimeMinutes: 10, cookTimeMinutes: 25, servings: 4, imageUrl: null },
+      }],
+    }
     else if (path === '/api/powersync/token') {
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'disabled' }) })
       return
@@ -75,15 +101,16 @@ async function mockApi(page: Page) {
   })
 }
 
-async function signIn(page: Page) {
+async function signIn(page: Page, then: string) {
   await page.goto('/')
   await expect(page.getByText('Welcome back')).toBeVisible()
   await page.locator('input[type="email"]').fill('alex@example.test')
   await page.locator('input[type="password"]').fill('not-a-real-password')
   await page.getByRole('button', { name: 'Sign in' }).click()
-  // Signed in on the kiosk (the default experience) — the planner is reached by the
-  // experience parameter or a stored preference, which each test sets up itself.
-  await expect(page.getByRole('navigation').first()).toBeVisible()
+  // At a phone width the kiosk's rail is hidden behind the ☰ menu, so there is no
+  // visible navigation landmark to wait on — go straight to the target and let the
+  // planner's own bar (or the assertion of it) prove the session took.
+  if (then !== '/') await page.goto(then)
 }
 
 test.beforeEach(async ({ page }) => {
@@ -91,9 +118,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('a phone-shaped link lands on the planner, not the kiosk', async ({ page }) => {
-  await signIn(page)
-  // ?experience=planner is how an installed PWA (or a shared link) picks the planner.
-  await page.goto('/?experience=planner')
+  await signIn(page, '/?experience=planner')
   await expect(page).toHaveURL(/\/planner\/today$/)
   // Return visits without the parameter stay on the planner.
   await page.goto('/')
@@ -101,8 +126,7 @@ test('a phone-shaped link lands on the planner, not the kiosk', async ({ page })
 })
 
 test('the planner keeps the phone geometry the reference was measured on', async ({ page }) => {
-  await signIn(page)
-  await page.goto('/?experience=planner')
+  await signIn(page, '/?experience=planner')
   await expect(page.getByRole('navigation', { name: 'Planner' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/good (morning|afternoon|evening)/i)
 
@@ -131,12 +155,14 @@ test('the planner keeps the phone geometry the reference was measured on', async
     'FAB raised above the bar': bar!.y - fab!.y,
     'FAB centred (off-centre px)': Math.abs((fab!.x + fab!.width / 2) - (bar!.width / 2)),
     'capture pill height': pill!.height,
-    'pill left gutter': pill!.x,
-    'header left gutter': header!.x,
-    'cards left gutter': cards!.x,
+    'page gutter (pill left)': pill!.x,
+    'page gutter (first card left)': cardBox!.x,
+    'first card width': cardBox!.width,
     'card gap': gap,
     'card radius': radius,
     'first card height': cardBox!.height,
+    'header is full-width chrome (x)': header!.x,
+    'cards column is full-width (x)': cards!.x,
     viewport: `${page.viewportSize()!.width}x${page.viewportSize()!.height}`,
   }
   console.log('planner geometry @402x874pt:', JSON.stringify(measured, null, 2))
@@ -148,9 +174,10 @@ test('the planner keeps the phone geometry the reference was measured on', async
   expect(Math.abs(bar!.y - fab!.y - 9)).toBeLessThanOrEqual(2) // raised ~9pt
   expect(Math.abs((fab!.x + fab!.width / 2) - bar!.width / 2)).toBeLessThanOrEqual(1)
   expect(pill!.height).toBe(50)
+  // The gutter is carried by the pill's margin and the cards column's padding, so the
+  // header and the cards column are full-width elements — assert the content, not them.
   expect(Math.round(pill!.x)).toBe(18)
-  expect(Math.round(header!.x)).toBe(18)
-  expect(Math.round(cards!.x)).toBe(18)
+  expect(Math.round(cardBox!.x)).toBe(18)
   expect(gap).toBe('14px')
   expect(radius).toBe('22px')
 
@@ -158,8 +185,7 @@ test('the planner keeps the phone geometry the reference was measured on', async
 })
 
 test('the planner runs on one column, with its own way back to the kiosk', async ({ page }) => {
-  await signIn(page)
-  await page.goto('/?experience=planner')
+  await signIn(page, '/?experience=planner')
 
   // The tab bar is the phone's: Today, Calendar, capture, the module slot, Family.
   const bar = page.getByRole('navigation', { name: 'Planner' })
@@ -190,8 +216,7 @@ test('the planner runs on one column, with its own way back to the kiosk', async
 })
 
 test('the planner’s capture pill opens the same composer the kiosk uses', async ({ page }) => {
-  await signIn(page)
-  await page.goto('/?experience=planner')
+  await signIn(page, '/?experience=planner')
   await page.getByTestId('planner-capture').click()
   const composer = page.locator('.cap-composer')
   await expect(composer).toBeVisible()

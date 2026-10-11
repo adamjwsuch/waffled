@@ -28,6 +28,15 @@
   overscroll-behavior: none;
 }
 
+/* The app sets no global border-box reset, and this layout's numbers (a 64px bar with
+   11px of padding, a 50px pill with 5px) are only 64px and 50px under border-box. */
+.wf-planner,
+.wf-planner *,
+.wf-planner *::before,
+.wf-planner *::after {
+  box-sizing: border-box;
+}
+
 /* On a desktop browser that opted into the planner, keep it phone-shaped and centred
    instead of stretching a one-column layout across a 27" display. */
 @media (min-width: 700px) {
