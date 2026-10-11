@@ -21,16 +21,20 @@ Legend: ✅ done · 🟡 partial / in progress · 🚧 planned · ⛔ dropped (s
   *planner* beside the kiosk: bottom tab bar with the raised capture button, one column,
   and one-column Today, Calendar, Meals and Family screens built from the iOS app's own
   card specs (agenda rows with the owner's avatar, the split tonight card with the dish in
-  serif, countdown tiles, chores + grocery as a pair, a month grid with event chips over the
-  selected day, a card per day of the week with a "Plan breakfast/lunch/dinner" slot, and a
-  member row over the module tiles), and the switch to choose which shape a
+  serif, countdown tiles, chores + grocery as a pair, the pinned Lists card, the Goals hero
+  card with its ring and a contribution row per person, the Rhythms card — eight of the
+  server's ten Today cards, all but Pantry and Family Night — a month grid with event chips
+  over the selected day, a card per day of the week with a "Plan breakfast/lunch/dinner"
+  slot, and a member row over the module tiles), and the switch to choose which shape a
   device runs (`?experience=` / installed phone PWA, remembered). Today reads the layout the
   app itself saves (`/api/today-layout/mobile`), so the cards sit in the order someone set on
   any of the household's phones, and the header's slider button opens **Customize Today** —
   drag to reorder, toggle to show or hide, save to the household default or just this phone.
-  Capture is the existing composer, so both shapes add the same things the same way. Deeper
-  screens (a recipe, a person, an event, the recipe picker) still open in the kiosk chrome —
-  that is the remaining work.
+  The new cards reuse the kiosk's own hooks and its goal-log and rhythm-booking sheets rather
+  than forking them, so the two surfaces behave identically. Capture is the existing composer,
+  so both shapes add the same things the same way. Deeper screens (a recipe, a person, an
+  event, the recipe picker) still open in the kiosk chrome — that is the remaining work,
+  along with the module screens the flex tab can reach (Tasks, Goals, Lists, Pantry).
 
 - **iPhone calendar: Month → Week → Day** — the phone Calendar tab rebuilt from the design
   handoff: a full-height month grid with ISO week numbers and up to four titles a day, a
