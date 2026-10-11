@@ -623,3 +623,293 @@
   height: 13px;
   color: var(--ink-3);
 }
+
+/* ---------------------------------------------------------------- lists */
+
+.p-pl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.p-pl-head h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.p-pl-head button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.p-pl-head button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.p-pl-label {
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+
+.p-pl-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 6px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--sans);
+}
+
+.p-pl-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-pl-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.p-pl-row svg {
+  width: 13px;
+  height: 13px;
+  color: color-mix(in srgb, var(--ink-3) 55%, transparent);
+}
+
+/* ---------------------------------------------------------------- list detail */
+
+.p-pld-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.p-pld-back {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  border: 0;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.p-pld-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.p-pld-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.p-pld-head > button[aria-label='List options'] {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+}
+
+.p-pld-head > button[aria-label='List options'] svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The ⋯ menu reuses the meal row's dropdown shape (.p-menu), right-anchored under the header. */
+.p-pld-menu {
+  position: absolute;
+  right: 18px;
+  top: 52px;
+  z-index: 5;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--sh-3);
+}
+
+.p-pld-menu button {
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.p-pld-menu button.danger {
+  color: var(--danger, #c0392b);
+}
+
+.p-pld-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+}
+
+.p-pld-add input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: var(--card);
+  box-shadow: var(--sh-1);
+  border-radius: 999px;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.p-pld-add input::placeholder {
+  color: var(--ink-3);
+}
+
+.p-pld-add button[type='submit'] {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.p-pld-add button[type='submit']:disabled {
+  opacity: 0.4;
+}
+
+.p-pld-add button[type='submit'] svg {
+  width: 15px;
+  height: 15px;
+}
+
+.p-pld-sec-label {
+  padding: 2px 10px 6px;
+}
+
+.p-pld-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 6px;
+}
+
+.p-pld-check {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border: 1.5px solid var(--hair-2);
+  border-radius: 50%;
+  background: none;
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.p-pld-check.on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.p-pld-check svg {
+  width: 13px;
+  height: 13px;
+}
+
+.p-pld-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.p-pld-row.done .p-pld-name {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+.p-pld-qty {
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.p-pld-av {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+
+.p-pld-del {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1;
+}
