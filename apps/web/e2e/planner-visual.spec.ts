@@ -227,9 +227,10 @@ test('the planner runs on one column, with its own way back to the kiosk', async
   await expect(page.getByRole('navigation', { name: 'Planner' })).toBeVisible()
 
   // And the switch takes the device back to the kiosk shell — it lives with the other
-  // device-level things on the Family tab, next to the module tiles.
+  // device-level things on the Family tab, next to the module tiles. (`exact` because the
+  // header avatar is also a link to the family tab: "You and your family".)
   await page.goto('/?experience=planner')
-  await page.getByRole('link', { name: 'Family' }).click()
+  await page.getByRole('link', { name: 'Family', exact: true }).click()
   await expect(page).toHaveURL(/\/planner\/family$/)
   await page.getByText('Kiosk view').click()
   await expect(page).toHaveURL(/\/$/)
