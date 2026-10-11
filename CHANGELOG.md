@@ -63,7 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own detail screen; Grocery still opens in one tap, but from its own card and its own
   row, not by accident of being the only thing the old screen ever showed. The grocery
   board itself, opened from the phone, no longer renders squeezed into a 236px sidebar
-  column meant for a kiosk-sized screen.
+  column meant for a kiosk-sized screen — and it now gets a real back header above it,
+  instead of starting flush at the top of the screen with no way back (the board's own
+  back/share buttons target a kiosk-only chrome slot the phone doesn't have).
 
 ## [0.15.3] - 2026-10-07
 

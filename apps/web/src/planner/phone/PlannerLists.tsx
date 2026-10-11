@@ -97,9 +97,10 @@ function ListRow({ list, first, onClick }: { list: ListSummary; first: boolean; 
 /** ListDetailView, in React. Grocery is never a sectioned list on any surface — it
  *  takes over as the same auto-built board the kiosk opens (GroceryBoard itself,
  *  reused whole), so "Grocery" means one screen everywhere, not a phone copy that
- *  can drift from it. That board has its own topbar-slot back/share buttons, which
- *  only render inside the kiosk's chrome (the planner has no topbar slot) — this
- *  screen's own back button covers back; Share isn't reachable from the phone yet. */
+ *  can drift from it. That board registers its own back/share buttons into the
+ *  kiosk's topbar slot, which the planner never renders — so without a header of
+ *  its own here, the board's content started flush at the very top of the screen
+ *  with no way back to Lists at all. Share still isn't reachable from the phone. */
 export function PlannerListDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -112,7 +113,17 @@ export function PlannerListDetail() {
   const back = () => navigate(`${PLANNER_ROOT}/lists`)
 
   if (list?.listType === 'grocery') {
-    return <GroceryBoard onBack={back} />
+    return (
+      <div className="planner-screen-body p-pld">
+        <div className="p-pld-head">
+          <button type="button" className="p-pld-back" onClick={back}>
+            <Icon name="cl" /> Lists
+          </button>
+          <span className="p-pld-title">{list.emoji ?? '🛒'} {list.name}</span>
+        </div>
+        <GroceryBoard onBack={back} />
+      </div>
+    )
   }
 
   return (
