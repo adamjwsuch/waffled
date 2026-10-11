@@ -38,6 +38,11 @@ const Settings = lazy(() => import('./Settings').then((m) => ({ default: m.Setti
 // frame so the tab bar and the one-column shape stay put.
 const PlannerShell = lazy(() => import('../planner/PlannerShell').then((m) => ({ default: m.PlannerShell })))
 const PlannerToday = lazy(() => import('../planner/PlannerToday').then((m) => ({ default: m.PlannerToday })))
+// The three tabs whose card interiors the phone shapes differently from the kiosk. The rest
+// of the planner's tabs still mount the kiosk screens inside the planner frame.
+const PlannerCalendar = lazy(() => import('../planner/phone/PlannerCalendar').then((m) => ({ default: m.PlannerCalendar })))
+const PlannerMeals = lazy(() => import('../planner/phone/PlannerMeals').then((m) => ({ default: m.PlannerMeals })))
+const PlannerFamily = lazy(() => import('../planner/phone/PlannerFamily').then((m) => ({ default: m.PlannerFamily })))
 
 // Layout route that redirects to Today when an optional module is off, so a
 // bookmark/direct URL to a disabled page doesn't render a dead (403-ing) screen.
@@ -64,12 +69,12 @@ export function KioskRoutes() {
       <Route path="planner" element={<PlannerShell />}>
         <Route index element={<Navigate to="today" replace />} />
         <Route path="today" element={<PlannerToday />} />
-        <Route path="calendar" element={<Calendar />} />
+        <Route path="calendar" element={<PlannerCalendar />} />
         <Route path="calendar/event/:id" element={<EventDetail />} />
-        <Route path="family" element={<FamilyOverview />} />
+        <Route path="family" element={<PlannerFamily />} />
         <Route path="person/:id" element={<PersonProfile />} />
         <Route element={<ModuleGate module="meals" />}>
-          <Route path="meals" element={<Meals />} />
+          <Route path="meals" element={<PlannerMeals />} />
           <Route path="meals/recipes" element={<RecipesLibrary />} />
           <Route path="meals/recipe/:id" element={<RecipeDetail />} />
         </Route>

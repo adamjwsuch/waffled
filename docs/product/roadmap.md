@@ -19,7 +19,11 @@ Legend: ✅ done · 🟡 partial / in progress · 🚧 planned · ⛔ dropped (s
 
 - **Web planner (phone) experience** — the web build now lays itself out as a phone
   *planner* beside the kiosk: bottom tab bar with the raised capture button, one column,
-  a single-column Today built from the same cards, and the switch to choose which shape a
+  and one-column Today, Calendar, Meals and Family screens built from the iOS app's own
+  card specs (agenda rows with the owner's avatar, the split tonight card with the dish in
+  serif, countdown tiles, chores + grocery as a pair, a month grid with event chips over the
+  selected day, a card per day of the week with a "Plan breakfast/lunch/dinner" slot, and a
+  member row over the module tiles), and the switch to choose which shape a
   device runs (`?experience=` / installed phone PWA, remembered). Capture is the existing
   composer, so both shapes add the same things the same way. The tabs that are not Today
   reuse the existing screens for now, and their deeper screens still open in the kiosk

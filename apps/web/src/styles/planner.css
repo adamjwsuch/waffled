@@ -68,11 +68,26 @@
   flex-direction: column;
 }
 
+/* TodayView.stickyHeader: the greeting and the capture bar are pinned to the canvas —
+   the cards scroll out of sight beneath them, so the phone never loses its capture
+   affordance. (The app adds a shadow once content has scrolled under it; the pinned
+   background is the part you can see either way, so it is the part we ship.) */
+.planner-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 0 12px;
+  background: var(--bg);
+}
+
 .planner-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: calc(env(safe-area-inset-top, 0px) + 14px) var(--planner-gutter) 12px;
+  padding: 0 var(--planner-gutter);
 }
 
 .planner-h-text {
@@ -119,31 +134,36 @@
 }
 
 .planner-circle svg {
-  width: 19px;
-  height: 19px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  stroke-width: 1.8;
   stroke-linecap: round;
 }
 
+/* TodayView.greeting: the member's avatar is 46pt, tinted from their own colour at the
+   app's 16%, with the emoji at 0.52× (Avatar.swift). */
 .planner-avatar {
+  width: 46px;
+  height: 46px;
   background: var(--panel);
-  font-size: 21px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
 }
 
-/* The capture pill: 50px, a 40px AI square, the placeholder, a mic. */
+/* Components.swift → AICaptureBar: spacing 11, padding 11/12, a 30pt disc filled with
+   the violet AI token, a 16pt placeholder, a 15pt mic, and a 1pt hair stroke. */
 .planner-capture {
   display: flex;
   align-items: center;
   gap: 11px;
   margin: 0 var(--planner-gutter);
-  height: 50px;
-  padding: 5px 13px 5px 5px;
-  border: 0;
-  border-radius: 25px;
+  min-height: 52px;
+  padding: 11px 12px;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
   background: var(--card);
   box-shadow: var(--sh-1);
   text-align: left;
@@ -152,9 +172,9 @@
 
 .planner-cap-btn {
   flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-sm);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   background: var(--ai);
   color: var(--on-accent);
   display: grid;
@@ -162,8 +182,8 @@
 }
 
 .planner-cap-btn svg {
-  width: 19px;
-  height: 19px;
+  width: 14px;
+  height: 14px;
   fill: currentColor;
 }
 
@@ -224,9 +244,10 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
   align-items: flex-start;
-  padding-top: 11px;
+  padding: 10px 8px 0;
   background: var(--card);
-  box-shadow: 0 -1px 3px rgba(40, 33, 24, 0.06);
+  /* AppRoot.WaffledTabBar draws a 1pt `hair` rule along the top of the bar. */
+  border-top: 1px solid var(--hair);
 }
 
 .planner-tab {
@@ -241,8 +262,8 @@
 }
 
 .planner-tab svg {
-  width: 27px;
-  height: 27px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
@@ -251,7 +272,7 @@
 }
 
 .planner-tab-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
 }
 
@@ -267,7 +288,9 @@
   flex: none;
   width: 54px;
   height: 54px;
-  margin-top: -20px;
+  /* The app lifts the button 18pt out of a 10pt-padded bar — 8pt proud of the bar's
+     top edge. */
+  margin-top: -18px;
   border: 0;
   padding: 0;
   border-radius: 50%;
@@ -280,7 +303,7 @@
 }
 
 .planner-fab svg {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
 }
