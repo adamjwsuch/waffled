@@ -28,7 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   agenda, a card per day of the week with "Plan breakfast/lunch/dinner" in each empty slot,
   and a member row over the module tiles. The planner reuses the app's hooks, screens and design tokens rather than
   forking them: capture is the *same* composer, so a phrase like "dentist Tuesday 4pm"
-  works identically in both shapes.
+  works identically in both shapes. The planner header carries a one-tap way to this
+  device's kiosk view, on the Family tab beside the module tiles.
+- **The phone arranges Today the way the app does.** Today shows the cards in the order
+  saved in `/api/today-layout/mobile` — the same layout the iPhone app writes, so a reorder
+  made on any of the household's phones shows up here — and the header's second circle opens
+  **Customize Today**: drag a card to reorder it (or use the arrow keys on its grabber),
+  switch a card off to hide it, and save to your own phone or, if you may, to the household
+  default. Reset puts it back. A card added by a later release is never lost to a saved
+  layout, and saving from the phone leaves the cards the phone does not draw where they were.
 - **Future-dated one-off chores stay out of Today until they are due** (`settings.chores.hideFutureDated`,
   default on; admin-settable via `PUT /api/chores/settings`). A one-off chore created on Monday for
   Friday no longer appears in Today all week — it appears on Friday. Recurring chores and overdue
