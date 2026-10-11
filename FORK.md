@@ -36,7 +36,7 @@ git push --force-with-lease origin home
 | Change | Where | Upstream-able? |
 | --- | --- | --- |
 | `settings.chores.hideFutureDated` — future-dated one-off chores stay out of Today (default on) | `apps/api/src/modules/chores/{chores.service,chores.routes}.ts` | Yes — a household setting, worth a PR |
-| Planner (phone) UI for the web app | `apps/web/**` | Not as-is; ours is a taste call |
+| Planner (phone) UI for the web app: a `planner` experience beside the kiosk (`apps/web/src/planner/*`, `/planner/**` routes, `?experience=` switch) | `apps/web/**` | Not as-is; ours is a taste call |
 
 **Never change, or you break live clients:** the `/api` response shapes the shipped iOS app
 consumes, the PowerSync sync rules and token issuance, and the migration numbering rules in

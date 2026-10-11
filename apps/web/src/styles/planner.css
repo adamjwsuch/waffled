@@ -1,0 +1,277 @@
+/* Planner (phone) layout.
+ *
+ * The phone is NOT a second design system — every colour, radius, shadow and type
+ * token comes from styles/waffled.css (`:root`), and the card contents are the kiosk's
+ * own components. What lives here is geometry: one column, 18px page margins, 14px
+ * between cards, `--r-lg` cards, the 50px capture pill, and the 54px capture button
+ * raised above a 64px tab bar.
+ *
+ * The numbers are the ones measured against the iOS app for `ui-parity-render-check`
+ * (402x874pt @3x: h-padding 18, card gap 14, card radius 22, header circles 40, FAB 54,
+ * bar top padding 10, capture bar 50). Where the kiosk's own card paddings are larger
+ * (they are built for a wall display), the rules below pull them down to the phone
+ * scale rather than forking the components.
+ */
+
+.wf-planner {
+  --planner-gutter: 18px;
+  --planner-gap: 14px;
+  --planner-bar: 64px;
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  overscroll-behavior: none;
+}
+
+/* On a desktop browser that opted into the planner, keep it phone-shaped and centred
+   instead of stretching a one-column layout across a 27" display. */
+@media (min-width: 700px) {
+  .wf-planner {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(430px, 100%);
+    max-height: min(932px, 100%);
+    border-left: 1px solid var(--hair);
+    border-right: 1px solid var(--hair);
+    box-shadow: var(--sh-2);
+  }
+}
+
+.planner-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Clear the tab bar and the home indicator; the header takes the top inset. */
+  padding-bottom: calc(var(--planner-bar) + env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+/* ── Today ─────────────────────────────────────────────────────────────── */
+
+.planner-today {
+  display: flex;
+  flex-direction: column;
+}
+
+.planner-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) var(--planner-gutter) 12px;
+}
+
+.planner-h-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.planner-date {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.planner-greet {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 36px;
+  letter-spacing: -0.4px;
+  color: var(--ink);
+}
+
+.planner-circle,
+.planner-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
+.planner-circle {
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.planner-circle svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.planner-avatar {
+  background: var(--panel);
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* The capture pill: 50px, a 40px AI square, the placeholder, a mic. */
+.planner-capture {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 var(--planner-gutter);
+  height: 50px;
+  padding: 5px 13px 5px 5px;
+  border: 0;
+  border-radius: 25px;
+  background: var(--card);
+  box-shadow: var(--sh-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-cap-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--ai);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+}
+
+.planner-cap-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.planner-cap-ph {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-cap-mic {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.planner-cap-mic svg {
+  width: 17px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+/* ── The card column ───────────────────────────────────────────────────── */
+
+.planner-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--planner-gap);
+  padding: 19px var(--planner-gutter) 0;
+}
+
+/* The kiosk cards keep their contents; only the surface is squared to the phone:
+   22px radius, 17px padding, a smaller heading. Scoped to the planner so no kiosk
+   screen changes a pixel. */
+.wf-planner .planner-cards > .card {
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  padding: 15px 17px 8px;
+}
+
+.wf-planner .planner-cards .card-h {
+  font-size: 17px;
+}
+
+/* ── Tab bar + capture button ──────────────────────────────────────────── */
+
+.planner-tabbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--planner-bar) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 11px;
+  background: var(--card);
+  box-shadow: 0 -1px 3px rgba(40, 33, 24, 0.06);
+}
+
+.planner-tab {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.planner-tab svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.planner-tab-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.planner-tab.on {
+  color: var(--primary);
+}
+
+.planner-tab-spacer {
+  visibility: hidden;
+}
+
+.planner-fab {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  margin-top: -20px;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--sh-3);
+  cursor: pointer;
+}
+
+.planner-fab svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+}

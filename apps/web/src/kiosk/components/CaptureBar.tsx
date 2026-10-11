@@ -535,7 +535,7 @@ function CandidatePicker({ intent, state, chosenId, onPick, onCommit, busy }: {
   )
 }
 
-export function CaptureBar() {
+export function CaptureBar({ hideTrigger = false, openSignal = 0 }: { hideTrigger?: boolean; openSignal?: number } = {}) {
   const { persons } = usePersons()
   // The current viewer's admin state gates the `person` (add-a-member) commit —
   // creating a household member is an adminRoute, so non-admins get a graceful
@@ -691,6 +691,15 @@ export function CaptureBar() {
     void api.warm()
     setTimeout(() => taRef.current?.focus(), 0)
   }
+
+  // A caller that owns its own trigger (the planner's header pill and capture button)
+  // opens the composer by bumping `openSignal` — the parser, the server resolve and the
+  // commit path stay exactly the ones the kiosk uses.
+  useEffect(() => {
+    if (openSignal > 0) open()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSignal])
+
   function close() {
     setExpanded(false)
     setText('')
@@ -889,12 +898,14 @@ export function CaptureBar() {
 
   return (
     <>
-      <button type="button" className="ai-bar capture-trigger" onClick={open} style={{ flex: 1, maxWidth: 520 }}>
-        <div className="ai-spark">
-          <Icon name="spark" />
-        </div>
-        <span className={`cap-trigger-text ${text ? '' : 'ph'}`}>{text || 'Add anything… “Soccer Tue 4pm for Wally”'}</span>
-      </button>
+      {!hideTrigger && (
+        <button type="button" className="ai-bar capture-trigger" onClick={open} style={{ flex: 1, maxWidth: 520 }}>
+          <div className="ai-spark">
+            <Icon name="spark" />
+          </div>
+          <span className={`cap-trigger-text ${text ? '' : 'ph'}`}>{text || 'Add anything… “Soccer Tue 4pm for Wally”'}</span>
+        </button>
+      )}
 
       {expanded &&
         createPortal(

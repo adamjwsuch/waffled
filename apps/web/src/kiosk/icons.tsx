@@ -30,6 +30,10 @@ const PATHS = {
   planning: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M8.5 14.5l2.4 2.4 4.6-5"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
+  // The two experiences, so a device can say which one it is running: the counter/wall
+  // display (kiosk) and the phone (planner). See src/planner/mode.ts.
+  display: '<rect x="2.5" y="4" width="19" height="12.5" rx="2.4"/><path d="M8.5 20.5h7M12 16.5v4"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.6"/><path d="M10.6 18.6h2.8"/>',
 } as const
 
 export type IconName = keyof typeof PATHS

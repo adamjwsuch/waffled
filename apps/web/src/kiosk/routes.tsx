@@ -33,6 +33,11 @@ const Rhythms = lazy(() => import('./Rhythms').then((m) => ({ default: m.Rhythms
 const WeeklyPlanning = lazy(() => import('./WeeklyPlanning').then((m) => ({ default: m.WeeklyPlanning })))
 const Photos = lazy(() => import('./Photos').then((m) => ({ default: m.Photos })))
 const Settings = lazy(() => import('./Settings').then((m) => ({ default: m.Settings })))
+// The phone planner (src/planner). Shell + Today are the planner's own; every other
+// planner tab reuses the screen the kiosk already ships, mounted inside the planner
+// frame so the tab bar and the one-column shape stay put.
+const PlannerShell = lazy(() => import('../planner/PlannerShell').then((m) => ({ default: m.PlannerShell })))
+const PlannerToday = lazy(() => import('../planner/PlannerToday').then((m) => ({ default: m.PlannerToday })))
 
 // Layout route that redirects to Today when an optional module is off, so a
 // bookmark/direct URL to a disabled page doesn't render a dead (403-ing) screen.
@@ -55,6 +60,33 @@ function ModuleGate({ module }: { module: ModuleKey }) {
 export function KioskRoutes() {
   return (
     <Routes>
+      {/* The phone planner: its own shell (no rail, no topbar), the same screens. */}
+      <Route path="planner" element={<PlannerShell />}>
+        <Route index element={<Navigate to="today" replace />} />
+        <Route path="today" element={<PlannerToday />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="calendar/event/:id" element={<EventDetail />} />
+        <Route path="family" element={<FamilyOverview />} />
+        <Route path="person/:id" element={<PersonProfile />} />
+        <Route element={<ModuleGate module="meals" />}>
+          <Route path="meals" element={<Meals />} />
+          <Route path="meals/recipes" element={<RecipesLibrary />} />
+          <Route path="meals/recipe/:id" element={<RecipeDetail />} />
+        </Route>
+        <Route element={<ModuleGate module="chores" />}>
+          <Route path="tasks" element={<Tasks />} />
+        </Route>
+        <Route element={<ModuleGate module="goals" />}>
+          <Route path="goals" element={<Goals />} />
+          <Route path="goals/:id" element={<GoalDetail />} />
+        </Route>
+        <Route element={<ModuleGate module="lists" />}>
+          <Route path="lists" element={<Lists />} />
+        </Route>
+        <Route element={<ModuleGate module="pantry" />}>
+          <Route path="pantry" element={<Pantry />} />
+        </Route>
+      </Route>
       <Route element={<KioskLayout />}>
         <Route index element={<Today />} />
         <Route path="calendar" element={<Calendar />} />

@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The web app now runs in two shapes: the kiosk and a phone *planner*.** On a
+  phone-sized installed PWA the same build lays itself out like the iPhone app — one
+  column, a bottom tab bar with the raised capture button, and a single-column Today —
+  while every wall display, counter iPad and desktop browser tab keeps the kiosk it has
+  always had. A link can choose either (`?experience=planner` / `?experience=kiosk`) and
+  the choice is remembered, and the planner header carries a one-tap switch back to the
+  kiosk. The planner reuses the app's screens, cards and design tokens rather than
+  forking them: capture is the *same* composer, so a phrase like "dentist Tuesday 4pm"
+  works identically in both shapes.
 - **Future-dated one-off chores stay out of Today until they are due** (`settings.chores.hideFutureDated`,
   default on; admin-settable via `PUT /api/chores/settings`). A one-off chore created on Monday for
   Friday no longer appears in Today all week — it appears on Friday. Recurring chores and overdue

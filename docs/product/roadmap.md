@@ -17,6 +17,14 @@ Legend: ✅ done · 🟡 partial / in progress · 🚧 planned · ⛔ dropped (s
 
 ## Done ✅
 
+- **Web planner (phone) experience** — the web build now lays itself out as a phone
+  *planner* beside the kiosk: bottom tab bar with the raised capture button, one column,
+  a single-column Today built from the same cards, and the switch to choose which shape a
+  device runs (`?experience=` / installed phone PWA, remembered). Capture is the existing
+  composer, so both shapes add the same things the same way. The tabs that are not Today
+  reuse the existing screens for now, and their deeper screens still open in the kiosk
+  chrome — that is the remaining work.
+
 - **iPhone calendar: Month → Week → Day** — the phone Calendar tab rebuilt from the design
   handoff: a full-height month grid with ISO week numbers and up to four titles a day, a
   horizontal week card rail (tap an event to edit it), and a pushed Day timeline with overlap

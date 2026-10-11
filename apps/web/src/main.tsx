@@ -7,6 +7,7 @@ import './styles/calendar.css'
 import { KioskRoutes } from './kiosk/routes'
 import { AuthGate } from './kiosk/AuthGate'
 import { KioskDisplay } from './kiosk/KioskDisplay'
+import { ExperienceGate } from './planner/ExperienceGate'
 import { ServerUnreachableBanner } from './kiosk/components/ServerUnreachableBanner'
 import { registerServiceWorker } from './lib/pwa'
 import { connectPowerSync } from './lib/powersync/db'
@@ -27,7 +28,9 @@ createRoot(document.getElementById('root')!).render(
         {/* Above AuthGate so the login / setup / picker screens get it too. */}
         <ServerUnreachableBanner />
         <AuthGate>
-          <KioskRoutes />
+          <ExperienceGate>
+            <KioskRoutes />
+          </ExperienceGate>
         </AuthGate>
       </KioskDisplay>
     </BrowserRouter>
