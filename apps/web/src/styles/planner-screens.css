@@ -913,3 +913,23 @@
   font-size: 16px;
   line-height: 1;
 }
+
+/* The grocery board's own header row (title · counts · search) only fits because
+   the kiosk gives it a whole wide column. In the planner that row is ~330px, and
+   the search box is a fixed 190px that refuses to shrink — leaving the title to
+   wrap to two lines and the counts to squeeze into a four-line column. Wrap the
+   search onto a row of its own and let the title and counts have the first one.
+   Scoped to .p-pld so the kiosk board keeps the layout it was designed for. */
+.p-pld .grocery-head {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+.p-pld .grocery-head .lists-search-wrap {
+  flex: 1 1 100%;
+}
+.p-pld .grocery-head .lists-search {
+  width: 100%;
+}
+.p-pld .grocery-count {
+  white-space: nowrap;
+}

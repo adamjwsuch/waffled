@@ -68,6 +68,21 @@ async function mockApi(page: Page) {
 
     if (path === '/api/auth/status') body = { initialized: true, methods: ['password'] }
     else if (path === '/api/auth/login') body = { accessToken: 'test-access', refreshToken: 'test-refresh', expiresIn: 900 }
+    else if (path === '/api/lists') body = {
+      lists: [
+        { id: 'list-grocery', name: 'Grocery', emoji: '🛒', listType: 'grocery', isAutoBuilt: false, sortMode: 'manual', itemCount: 2 },
+        { id: 'list-custom', name: 'Hardware run', emoji: '🔧', listType: 'custom', isAutoBuilt: false, sortMode: 'manual', itemCount: 2 },
+      ],
+    }
+    else if (path === '/api/lists/templates') body = { templates: [] }
+    else if (path === '/api/lists/grocery/board') body = {
+      weekStart: date, weekEnd: date, stores: [],
+      items: [
+        { id: 'gi1', name: 'Milk', checked: false, quantity: '2 pints', section: 'Dairy', store: null, recipeId: null, mealId: null, color: null, assignee: null, sortOrder: null, checkedAt: null },
+        { id: 'gi2', name: 'Bread', checked: true, quantity: null, section: 'Bakery', store: null, recipeId: null, mealId: null, color: null, assignee: null, sortOrder: null, checkedAt: null },
+      ],
+      meals: [], unscheduledMeals: [], staples: [],
+    }
     else if (path === '/api/household') body = { provisioned: true, household, person, memberships: [], pendingInvites: [] }
     else if (path === '/api/persons') body = { persons: [person] }
     else if (path === '/api/permissions') body = { permissions: { adult: permissionRow, teen: permissionRow, kid: permissionRow }, capabilities, roles: ['adult', 'teen', 'kid'] }
@@ -280,4 +295,36 @@ test('the planner’s capture pill opens the same composer the kiosk uses', asyn
   await expect(composer.getByLabel('Add anything')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(composer).toHaveCount(0)
+})
+
+// Two things the phone got wrong by rendering the kiosk's Lists screen unmodified: it
+// auto-opened the grocery board (so the index was unreachable), and that board's header
+// row — title, counts, a fixed 190px search box — only fits because the kiosk hands it a
+// whole wide column. At 402px the title wrapped to two lines and the counts to four.
+test('Lists opens the index, and the grocery board’s header fits the phone', async ({ page }) => {
+  await signIn(page, '/?experience=planner')
+  await page.goto('/planner/lists')
+  await expect(page.getByRole('heading', { level: 1, name: 'Lists' })).toBeVisible()
+  // The index, not straight into grocery.
+  await expect(page.locator('.p-pl-name', { hasText: 'Hardware run' })).toBeVisible()
+  await expect(page.locator('.grocery-head')).toHaveCount(0)
+
+  await page.locator('.p-pl-name', { hasText: 'Grocery' }).click()
+  await expect(page.locator('.grocery-head')).toBeVisible()
+
+  const title = await page.locator('.grocery-title').boundingBox()
+  const count = await page.locator('.grocery-count').boundingBox()
+  const search = await page.locator('.grocery-head .lists-search-wrap').boundingBox()
+  const head = await page.locator('.grocery-head').boundingBox()
+  if (!title || !count || !search || !head) throw new Error('grocery header did not render')
+
+  // One line each: the kiosk squash put the title at 60px tall and the counts at 64px
+  // wide by 4 lines deep. A single line is ~30px and ~16px respectively.
+  expect(title.height).toBeLessThan(40)
+  expect(count.height).toBeLessThan(24)
+  // The counts keep a readable run of text instead of being crushed into a column.
+  expect(count.width).toBeGreaterThan(90)
+  // And the fixed-width search box drops to a row of its own rather than fighting them.
+  expect(search.y).toBeGreaterThan(title.y + title.height - 2)
+  expect(search.width).toBeGreaterThan(head.width - 4)
 })
