@@ -51,7 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   board itself, opened from the phone, no longer renders squeezed into a 236px sidebar
   column meant for a kiosk-sized screen — and it now gets a real back header above it,
   instead of starting flush at the top of the screen with no way back (the board's own
-  back/share buttons target a kiosk-only chrome slot the phone doesn't have).
+  back/share buttons target a kiosk-only chrome slot the phone doesn't have). Its own
+  header row (title · counts · search) fits the phone too: the search box is a fixed
+  190px that refuses to shrink, so in a 330px row the title wrapped to two lines and the
+  counts to four — it now wraps the search onto a row of its own.
 
 ## [0.15.3] - 2026-10-07
 
