@@ -1,19 +1,37 @@
-// ESP32-P4 kitchen panel — read-only feed (Option A, first half). The panel holds
-// only a revocable DEVICE token (apps/api/scripts/mint-display-token.ts mints one
-// out-of-band; revocation is deleting its display_devices row — see the migration).
-// Unlike kiosk_devices, there is no secret-for-JWT exchange: the raw token IS the
-// bearer credential, hashed at rest, checked directly on each request. That means
-// this path can't go through the global Bearer/x-api-key gate in app.ts (which only
-// understands JWTs and API keys) — it's listed in PUBLIC_PATHS there and authenticates
-// itself, the same way kiosk's pre-session routes do.
+// ESP32-P4 kitchen panel — read-only feed (Option A, first half) plus the
+// person-attributed tick (second half). The panel holds only a revocable DEVICE
+// token (apps/api/scripts/mint-display-token.ts mints one out-of-band; revocation
+// is deleting its display_devices row — see the migration). Unlike kiosk_devices,
+// there is no secret-for-JWT exchange: the raw token IS the bearer credential,
+// hashed at rest, checked directly on each request. That means the feed and the
+// session-mint route can't go through the global Bearer/x-api-key gate in app.ts
+// (which only understands JWTs and API keys) — they're listed in PUBLIC_PATHS
+// there and authenticate themselves, the same way kiosk's pre-session routes do.
 //
-// Ticking (POST /api/display/chores/:id/tick, under a short-lived per-person PIN
-// session) is the next card — this one is GET /api/display/feed only.
-import { createHash } from 'node:crypto'
-import createAPI, { type Request } from 'lambda-api'
+// Ticking a chore needs to know WHO tapped it, and the panel has no per-person
+// login — so POST /api/display/sessions spends the device token + a person's PIN
+// (the SAME pin_hash kiosk mode already uses; no second credential store) for a
+// short-lived, person-bound JWT. That JWT IS a normal signed access token (minted
+// by mintAccess, just like a password/kiosk login), so it's NOT in PUBLIC_PATHS —
+// the gate below verifies it exactly like any other Bearer token, and
+// requireDisplaySession() below just reads its extra claims the way kiosk's
+// requireDevice() does for device tokens.
+import { randomUUID, createHash } from 'node:crypto'
+import createAPI, { type Request, type Response } from 'lambda-api'
 import { query } from '../../platform/db'
 import { AuthError } from '../../platform/auth'
-import { householdTz, todayDate, ensureTodayInstances, listTodayInstances } from '../chores/chores.service'
+import { mintAccess, verifyPassword } from '../auth/auth'
+import type { Tenant } from '../households/households'
+import {
+  householdTz,
+  todayDate,
+  ensureTodayInstances,
+  listTodayInstances,
+  completeInstance,
+  uncompleteInstance,
+  presentInstance,
+  ProofRequiredError,
+} from '../chores/chores.service'
 import type { TodayInstance } from '../chores/chores.types'
 
 type Api = ReturnType<typeof createAPI>
@@ -55,6 +73,55 @@ export async function requireDisplayDevice(req: Request): Promise<DisplayDeviceP
   return { deviceId: d.id, householdId: d.household_id }
 }
 
+// 4–8 digit PIN, same shape kiosk.ts validates when a person sets one (there is
+// only one PIN per person, shared by both surfaces).
+const PIN_RE = /^\d{4,8}$/
+// Minutes, not hours — this token exists only to authorize the next tap or two on
+// a shared wall panel, not to carry a session around. Long enough that ticking a
+// few chores back-to-back doesn't re-prompt for the PIN; short enough that a panel
+// left unattended goes back to asking for it quickly. Env-tunable (fractional
+// values allowed) so the expiry test doesn't need to wait ten real minutes.
+const DISPLAY_SESSION_TTL_MIN = Number(process.env.DISPLAY_SESSION_TTL_MIN) || 10
+
+export interface DisplaySessionPrincipal {
+  householdId: string
+  personId: string
+  personName: string
+  isAdmin: boolean
+  memberType: string
+}
+
+// A session-token guard, the display-tick analogue of kiosk's requireDevice(): only
+// tokens minted by POST /api/display/sessions carry kind:'display_session'. The JWT
+// itself is already verified (signature + expiry) by the global gate before this
+// route runs — expiry is exp, not a DB row, so there is nothing else to check here.
+function requireDisplaySession(req: Request): DisplaySessionPrincipal {
+  const claims = req.principal?.claims
+  if (claims?.kind !== 'display_session') throw new AuthError('Display session token required', 403)
+  return {
+    householdId: String(claims.household_id),
+    personId: String(claims.person_id),
+    personName: String(claims.person_name ?? ''),
+    isAdmin: claims.is_admin === true,
+    memberType: String(claims.member_type ?? 'kid'),
+  }
+}
+
+// Builds the minimal Tenant completeInstance/uncompleteInstance need. Those two
+// functions don't gate on isAdmin/memberType (the phone's own /complete and
+// /uncomplete routes let any household member tick), but the fields are carried
+// through anyway since Tenant requires them and a future capability check should
+// see something real, not a placeholder.
+function sessionTenant(session: DisplaySessionPrincipal): Tenant {
+  return {
+    sub: `display-session:${session.personId}`,
+    personId: session.personId,
+    householdId: session.householdId,
+    isAdmin: session.isAdmin,
+    memberType: session.memberType,
+  }
+}
+
 interface FeedPerson {
   id: string
   name: string
@@ -93,6 +160,17 @@ function presentFeed(instances: TodayInstance[]): FeedPerson[] {
   return [...byPerson.values()]
 }
 
+// Who completed an instance, by id — presentInstance() only carries the id
+// (personId of who it's FOR, not who ticked it), and the tick/undo responses need
+// the name for the panel to show attribution immediately without a second feed poll.
+async function completedByName(id: string | null): Promise<{ id: string; name: string } | null> {
+  if (!id) return null
+  const { rows } = await query<{ id: string; name: string }>(`select id, name from persons where id = $1`, [id])
+  return rows[0] ?? null
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function registerDisplayRoutes(api: Api): void {
   api.get('/api/display/feed', async (req: Request) => {
     const { householdId } = await requireDisplayDevice(req)
@@ -101,5 +179,74 @@ export function registerDisplayRoutes(api: Api): void {
     await ensureTodayInstances(householdId, date)
     const instances = await listTodayInstances(householdId, date, tz, { streaks: false })
     return { generatedAt: new Date().toISOString(), people: presentFeed(instances) }
+  })
+
+  // Device-authed, public (see PUBLIC_PATHS): spend the device token + a person's
+  // PIN for a short-lived person-bound session JWT. Brute-force defense is at the
+  // HTTP layer (platform/rate-limit.ts, 8 attempts / 15 min per device token) rather
+  // than per-person lockout columns, because the caller hasn't named a person yet —
+  // the PIN alone selects who they are, same as the panel having no profile picker.
+  api.post('/api/display/sessions', async (req: Request, res: Response) => {
+    const { householdId } = await requireDisplayDevice(req)
+    const pin = ((req.body ?? {}) as { pin?: string }).pin ?? ''
+    if (!PIN_RE.test(pin)) return res.status(401).json({ error: 'Unauthorized', message: 'Incorrect PIN.' })
+    const { rows } = await query<{ id: string; name: string; pin_hash: string; is_admin: boolean; member_type: string }>(
+      `select id, name, pin_hash, is_admin, member_type from persons
+        where household_id = $1 and deleted_at is null and pin_hash is not null`,
+      [householdId]
+    )
+    const person = rows.find((r) => verifyPassword(pin, r.pin_hash))
+    if (!person) return res.status(401).json({ error: 'Unauthorized', message: 'Incorrect PIN.' })
+    const access = mintAccess(
+      `display-session:${randomUUID()}`,
+      {
+        kind: 'display_session',
+        household_id: householdId,
+        person_id: person.id,
+        person_name: person.name,
+        is_admin: person.is_admin,
+        member_type: person.member_type,
+      },
+      DISPLAY_SESSION_TTL_MIN * 60
+    )
+    return res.status(201).json({
+      accessToken: access.token,
+      expiresIn: access.expiresIn,
+      person: { id: person.id, name: person.name },
+    })
+  })
+
+  // Session-authed (a normal Bearer JWT — goes through the global gate like any
+  // other route). Reuses the exact chores.service path the phone/web use so stars,
+  // history and the phone UI see the same thing a panel tick produces. Idempotent:
+  // completeInstance no-ops (returns the existing row) on an already done/awaiting
+  // instance rather than double-awarding.
+  api.post('/api/display/chores/:instanceId/tick', async (req: Request, res: Response) => {
+    const session = requireDisplaySession(req)
+    const instanceId = req.params.instanceId ?? ''
+    if (!UUID_RE.test(instanceId)) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+    try {
+      const inst = await completeInstance(sessionTenant(session), instanceId)
+      if (!inst) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+      return { instance: presentInstance(inst), doneBy: await completedByName(inst.completed_by) }
+    } catch (err) {
+      if (err instanceof ProofRequiredError) {
+        return res.status(422).json({ error: 'ProofRequired', message: err.message })
+      }
+      throw err
+    }
+  })
+
+  // The mis-tap recovery: revert to pending via the same uncompleteInstance a phone
+  // undo uses (reverses any star award too). Not restricted to the person who just
+  // ticked it — any live session on this device can undo, same as the phone lets
+  // any household member uncomplete.
+  api.post('/api/display/chores/:instanceId/undo', async (req: Request, res: Response) => {
+    const session = requireDisplaySession(req)
+    const instanceId = req.params.instanceId ?? ''
+    if (!UUID_RE.test(instanceId)) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+    const inst = await uncompleteInstance(sessionTenant(session), instanceId)
+    if (!inst) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+    return { instance: presentInstance(inst) }
   })
 }

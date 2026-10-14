@@ -104,6 +104,10 @@ const PUBLIC_PATHS = new Set([
   // Display panel feed: authenticates itself via a hashed opaque device token, not
   // a JWT or an API key, so it can't go through the gate below — see display.ts.
   '/api/display/feed',
+  // Same device token, pre-session: trades it + a person's PIN for a short-lived
+  // session JWT. The tick/undo routes that spend that JWT stay OFF this list —
+  // they ARE a normal Bearer JWT, so the gate below verifies it like any other.
+  '/api/display/sessions',
 ])
 
 // Auth gate — authenticates every non-public route. An `x-api-key` header takes the API-key

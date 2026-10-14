@@ -47,10 +47,16 @@ export function verifyPassword(pw: string, stored: string): boolean {
 // (requireAuth, the PowerSync exchange) unchanged.
 // `extra` carries optional non-identity claims (e.g. a device token's
 // { kind:'device', household_id }). Default empty → password/OIDC callers are unchanged.
-export function mintAccess(sub: string, extra: Record<string, unknown> = {}): { token: string; expiresIn: number } {
+// `ttlSeconds` overrides the default hour-long TTL for callers that need something
+// shorter-lived (e.g. a display panel's per-person PIN session) — default unchanged.
+export function mintAccess(
+  sub: string,
+  extra: Record<string, unknown> = {},
+  ttlSeconds: number = ACCESS_TTL_SECONDS
+): { token: string; expiresIn: number } {
   const { secret, issuer, audience } = config.auth.local
-  const token = jwt.sign(extra, secret, { algorithm: 'HS256', subject: sub, issuer, audience, expiresIn: ACCESS_TTL_SECONDS })
-  return { token, expiresIn: ACCESS_TTL_SECONDS }
+  const token = jwt.sign(extra, secret, { algorithm: 'HS256', subject: sub, issuer, audience, expiresIn: ttlSeconds })
+  return { token, expiresIn: ttlSeconds }
 }
 // Shared one-way hash for opaque secrets stored at rest (refresh tokens, device secrets).
 export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')

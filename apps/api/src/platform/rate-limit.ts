@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'lambda-api'
 
 interface Bucket {
@@ -107,6 +108,22 @@ function routeLimits(req: Request): Limit[] {
         scope: 'kiosk-device-token', key: ip,
         max: positiveInt('RATE_LIMIT_KIOSK_TOKEN_MAX', 30), windowMs: 10 * 60_000,
       }]
+    // A 4-digit PIN has only 10,000 combinations — bound it PER DEVICE (the bearer
+    // token in the Authorization header, hashed the same way requireDisplayDevice
+    // checks it) rather than per IP, since several panels can share a router and a
+    // single mis-typing panel shouldn't throttle its siblings or vice versa. Falls
+    // back to IP only for a request with no bearer token at all (nothing device-ish
+    // to key on). 8 attempts / 15 min caps brute force at ~768/day — a 10,000-PIN
+    // space takes months to exhaust at that rate, while a parent fumbling a PIN a
+    // few times never notices the limit.
+    case 'POST /api/display/sessions': {
+      const bearer = req.auth?.type === 'Bearer' && req.auth.value ? req.auth.value : null
+      const key = bearer ? createHash('sha256').update(bearer).digest('hex') : ip
+      return [{
+        scope: 'display-session', key,
+        max: positiveInt('RATE_LIMIT_DISPLAY_SESSION_MAX', 8), windowMs: 15 * 60_000,
+      }]
+    }
     case 'POST /api/media':
       return [{
         scope: 'media-upload', key: ip,
