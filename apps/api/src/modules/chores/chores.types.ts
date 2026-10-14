@@ -66,6 +66,9 @@ export interface TodayInstance {
   proofUrl: string | null
   hadProof: boolean
   streak: number
+  // Who actually completed it (may differ from the assignee — e.g. a parent
+  // completing on a kid's behalf). Null while pending/awaiting.
+  completedBy: { id: string; name: string } | null
 }
 
 export type ChoreEditScope = 'this' | 'following' | 'all'

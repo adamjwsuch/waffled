@@ -335,10 +335,12 @@ export async function listTodayInstances(
             ci.requires_photo, ci.proof_storage_key, ci.had_proof, ci.due_on::text as due_on,
             c.id as chore_id, ci.title_snapshot as chore_title, ci.emoji_snapshot as emoji,
             ci.rrule_snapshot as rrule, ci.due_time_snapshot::text as due_time,
-            p.name as person_name, p.avatar_emoji, p.color_hex
+            p.name as person_name, p.avatar_emoji, p.color_hex,
+            ci.completed_by, cb.name as completed_by_name
        from chore_instances ci
        join chores c on c.id = ci.chore_id
        left join persons p on p.id = ci.person_id
+       left join persons cb on cb.id = ci.completed_by
       where ci.household_id = $1 and ci.deleted_at is null
         and (c.deleted_at is null or ci.status in ('done', 'awaiting'))
         and (ci.due_on = $2::date
@@ -370,6 +372,7 @@ export async function listTodayInstances(
     proofUrl: mediaUrl(r.proof_storage_key),
     hadProof: r.had_proof,
     streak: streaks.get(r.chore_id) ?? 0,
+    completedBy: r.completed_by ? { id: r.completed_by, name: r.completed_by_name } : null,
   }))
 }
 
@@ -408,6 +411,8 @@ export async function listAwaitingInstances(householdId: string): Promise<TodayI
     proofUrl: mediaUrl(r.proof_storage_key),
     hadProof: r.had_proof,
     streak: 0,
+    // 'awaiting' is pre-completion by construction — nobody has finished it yet.
+    completedBy: null,
   }))
 }
 
