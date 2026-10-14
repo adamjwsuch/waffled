@@ -137,9 +137,12 @@ describe('display panel feed', () => {
   })
 
   it("rejects another household's device token reading nothing of this one — tokens are tenant-scoped", async () => {
-    const other = json(await call('POST', '/api/auth/setup', undefined, {
-      household: { name: 'Other House', timezone: 'UTC' },
-      admin: { name: 'Nora', email: 'nora@example.com', password: 'ownerpass1' },
+    // /api/auth/setup is the one-time first-run wizard; a second household comes
+    // from the admin-gated POST /api/households instead (same admin, new tenant).
+    const other = json(await call('POST', '/api/households', admin, {
+      name: 'Other House',
+      timezone: 'UTC',
+      person: { name: 'Nora' },
     }))
     const otherToken = await mintDeviceToken(other.household.id)
     const r = json(await call('GET', '/api/display/feed', otherToken))
