@@ -7,6 +7,7 @@ await build({
     server: 'src/server.ts', // container HTTP entrypoint
     lambda: 'src/lambda.ts', // AWS Lambda handler
     'mint-token': 'scripts/mint-token.ts', // dev token CLI
+    'mint-display-token': 'scripts/mint-display-token.ts', // ESP32 display panel device-token CLI
     migrate: 'scripts/migrate-cli.ts', // in-container migration runner (compose one-shot)
     otel: 'src/otel.ts', // OTEL preload (NODE_OPTIONS=--require) — see Dockerfile
     'health-cli': 'scripts/health-cli.ts', // `./waffled doctor` runs this in-container
