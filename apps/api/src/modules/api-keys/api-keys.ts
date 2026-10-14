@@ -79,6 +79,7 @@ export const NEVER_KEY_REACHABLE: NeverReachable[] = [
   { why: 'login, OIDC, invites and self-service account are session-only', prefixes: ['/api/auth', '/auth', '/api/account', '/api/households'] },
   { why: 'a key can never mint or manage keys', prefixes: ['/api/api-keys'] },
   { why: 'kiosk and Waffled-Bite pairing run on their own device tokens', prefixes: ['/api/kiosk', '/api/waffled-bites'] },
+  { why: 'the display panel authenticates with its own hashed device token, not a key', prefixes: ['/api/display'] },
   { why: 'the capability grid is an admin session surface', prefixes: ['/api/permissions'] },
   { why: 'offline sync is the first-party clients own transport', prefixes: ['/api/powersync'] },
   { why: 'LLM capture and the blob upload sink are first-party client surfaces', prefixes: ['/api/capture', '/api/media'] },

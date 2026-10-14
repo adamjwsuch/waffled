@@ -57,6 +57,7 @@ import { registerCaptureRoutes } from './modules/capture/capture'
 import { registerWeatherRoutes } from './integrations/weather'
 import { registerPowerSyncRoutes } from './modules/powersync/powersync'
 import { registerPowerSyncCrudRoutes } from './modules/powersync/powersync-crud'
+import { registerDisplayRoutes } from './modules/display/display'
 
 const api = createAPI()
 
@@ -100,6 +101,9 @@ const PUBLIC_PATHS = new Set([
   // Waffled-Bites pairing: same shape, pre-session.
   '/api/waffled-bites/pair',
   '/api/waffled-bites/device/token',
+  // Display panel feed: authenticates itself via a hashed opaque device token, not
+  // a JWT or an API key, so it can't go through the gate below — see display.ts.
+  '/api/display/feed',
 ])
 
 // Auth gate — authenticates every non-public route. An `x-api-key` header takes the API-key
@@ -277,6 +281,9 @@ registerWeatherRoutes(api)
 registerPowerSyncRoutes(api)
 
 registerPowerSyncCrudRoutes(api)
+
+// ESP32 kitchen panel feed (/api/display/feed) — device-token authed, read-only.
+registerDisplayRoutes(api)
 
 // Per-user API keys (/api/api-keys…) — mint/list/revoke; the keys themselves auth
 // via the x-api-key header in the gate above.
