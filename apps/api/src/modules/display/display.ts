@@ -79,9 +79,12 @@ const PIN_RE = /^\d{4,8}$/
 // Minutes, not hours — this token exists only to authorize the next tap or two on
 // a shared wall panel, not to carry a session around. Long enough that ticking a
 // few chores back-to-back doesn't re-prompt for the PIN; short enough that a panel
-// left unattended goes back to asking for it quickly. Env-tunable (fractional
-// values allowed) so the expiry test doesn't need to wait ten real minutes.
-const DISPLAY_SESSION_TTL_MIN = Number(process.env.DISPLAY_SESSION_TTL_MIN) || 10
+// left unattended goes back to asking for it quickly. Read live (not a frozen
+// module constant) so the expiry test can shrink it for one session without
+// starving every other session minted earlier in the same process.
+function sessionTtlSeconds(): number {
+  return (Number(process.env.DISPLAY_SESSION_TTL_MIN) || 10) * 60
+}
 
 export interface DisplaySessionPrincipal {
   householdId: string
@@ -207,7 +210,7 @@ export function registerDisplayRoutes(api: Api): void {
         is_admin: person.is_admin,
         member_type: person.member_type,
       },
-      DISPLAY_SESSION_TTL_MIN * 60
+      sessionTtlSeconds()
     )
     return res.status(201).json({
       accessToken: access.token,
