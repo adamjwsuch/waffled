@@ -37,6 +37,7 @@ git push --force-with-lease origin home
 | --- | --- | --- |
 | `settings.chores.hideFutureDated` — future-dated one-off chores stay out of Today (default on) | `apps/api/src/modules/chores/{chores.service,chores.routes}.ts` | Yes — a household setting, worth a PR |
 | Planner (phone) UI for the web app — shell (`src/planner/*`), Today cards and the Calendar/Meals/Family phone screens (`src/planner/phone/*`): a `planner` experience beside the kiosk (`apps/web/src/planner/*`, `/planner/**` routes, `?experience=` switch). Today's card order and hidden cards are the app's own mobile layout (`/api/today-layout/mobile`), edited by the Customize Today sheet behind the header's slider button (`src/planner/phone/CustomizeSheet.tsx`) | `apps/web/**` | Not as-is; ours is a taste call |
+| Kitchen display panel api surface — `GET /api/display/feed` (today's instances grouped per person, read-only) and `POST /api/display/sessions` (panel device token + a person's PIN → short-lived session token) for the ESP32-P4 wall panel; panel devices live in their own `display_devices` table (hashed token, revocable) | `apps/api/src/modules/display/display.ts`, `apps/api/migrations/0107_display_devices.sql`, `apps/api/scripts/mint-display-token.ts` | Yes — a generic "shared device, per-person attribution" surface |
 
 **Never change, or you break live clients:** the `/api` response shapes the shipped iOS app
 consumes, the PowerSync sync rules and token issuance, and the migration numbering rules in
