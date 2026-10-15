@@ -87,6 +87,7 @@ describe('display panel feed', () => {
     const body = json(r)
     expect(typeof body.generatedAt).toBe('string')
     expect(body.people).toEqual([])
+    expect(body.upForGrabs).toEqual({ chores: [] })
   })
 
   it("returns today's instances grouped per person for a valid device token", async () => {
@@ -105,14 +106,41 @@ describe('display panel feed', () => {
     expect(typeof wally.chores[0].instanceId).toBe('string')
   })
 
-  it('reflects a completion with who did it, and leaves up-for-grabs chores out', async () => {
-    // Unassigned ("up for grabs") chores have nobody to attribute a tick to — the
-    // panel groups per person, so they're absent rather than attached to nobody.
+  it('plumbs a person\'s colour/avatar through as colorHex/avatarEmoji', async () => {
+    const token = await mintDeviceToken(householdId)
+    const noraId = json(await call('POST', '/api/persons', admin, {
+      name: 'Nora', memberType: 'kid', colorHex: '#2F7FED', avatarEmoji: '🧑🏻',
+    })).person.id
+    const add = await call('POST', '/api/chores', admin, { title: 'Walk the dog', personId: noraId })
+    expect(add.statusCode).toBe(201)
+
+    const body = json(await call('GET', '/api/display/feed', token))
+    const nora = body.people.find((p: { id: string }) => p.id === noraId)
+    expect(nora).toMatchObject({ colorHex: '#2F7FED', avatarEmoji: '🧑🏻' })
+    // Wally never set either — both read null, not absent/undefined.
+    const wally = body.people.find((p: { id: string }) => p.id === kidId)
+    expect(wally).toMatchObject({ colorHex: null, avatarEmoji: null })
+  })
+
+  it('carries an unassigned ("up for grabs") chore in its own bucket, separate from people[]', async () => {
+    // Unassigned chores used to be dropped — "nobody to attribute a tick to" — but
+    // the tick route now claims an up-for-grabs instance to the PIN'd session
+    // person before completing it, so attribution resolves to a person at tick
+    // time rather than needing to be known up front. They're carried, not hidden.
     const grab = await call('POST', '/api/chores', admin, { title: 'Anyone can sweep', personId: null })
     expect(grab.statusCode).toBe(201)
 
     const token = await mintDeviceToken(householdId)
     const before = json(await call('GET', '/api/display/feed', token))
+    const sweep = before.upForGrabs.chores.find((c: { title: string }) => c.title === 'Anyone can sweep')
+    expect(sweep).toMatchObject({ status: 'pending', doneBy: null })
+    expect(typeof sweep.instanceId).toBe('string')
+    // Not duplicated into any person's own chores.
+    expect(
+      before.people.some((p: { chores: Array<{ title: string }> }) =>
+        p.chores.some((c) => c.title === 'Anyone can sweep'))
+    ).toBe(false)
+
     const instanceId = before.people.find((p: { id: string }) => p.id === kidId).chores
       .find((c: { title: string }) => c.title === 'Dishes').instanceId
 
@@ -120,11 +148,33 @@ describe('display panel feed', () => {
     expect(done.statusCode).toBe(200)
 
     const after = json(await call('GET', '/api/display/feed', token))
-    expect(after.people).toHaveLength(1) // the up-for-grabs sweep never appears
     const wally = after.people.find((p: { id: string }) => p.id === kidId)
     const dishes = wally.chores.find((c: { title: string }) => c.title === 'Dishes')
     expect(dishes.status).toBe('done')
     expect(dishes.doneBy).toMatchObject({ name: 'Kevin' }) // the admin completed it, not Wally
+    // The sweep is untouched — still up for grabs, still pending.
+    expect(after.upForGrabs.chores.find((c: { title: string }) => c.title === 'Anyone can sweep')).toMatchObject({
+      status: 'pending',
+      doneBy: null,
+    })
+  })
+
+  it('hideFutureDated gates an unassigned future-dated one-off the same as an assigned one', async () => {
+    const future = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10)
+    expect((await call('PUT', '/api/chores/settings', admin, { hideFutureDated: true })).statusCode).toBe(200)
+    const grab = await call('POST', '/api/chores', admin, { title: 'Future sweep', personId: null, dueOn: future })
+    expect(grab.statusCode).toBe(201)
+
+    const token = await mintDeviceToken(householdId)
+    const hidden = json(await call('GET', '/api/display/feed', token))
+    expect(hidden.upForGrabs.chores.some((c: { title: string }) => c.title === 'Future sweep')).toBe(false)
+
+    expect((await call('PUT', '/api/chores/settings', admin, { hideFutureDated: false })).statusCode).toBe(200)
+    const shown = json(await call('GET', '/api/display/feed', token))
+    expect(shown.upForGrabs.chores.some((c: { title: string }) => c.title === 'Future sweep')).toBe(true)
+
+    // Restore the default for any later test relying on it.
+    await call('PUT', '/api/chores/settings', admin, { hideFutureDated: true })
   })
 
   it('still 401s a revoked (deleted) device token', async () => {
@@ -147,5 +197,6 @@ describe('display panel feed', () => {
     const otherToken = await mintDeviceToken(other.household.id)
     const r = json(await call('GET', '/api/display/feed', otherToken))
     expect(r.people).toEqual([]) // Other House has its own (empty) today, not Sites'
+    expect(r.upForGrabs).toEqual({ chores: [] })
   })
 })

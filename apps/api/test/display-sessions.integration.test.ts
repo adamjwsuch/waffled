@@ -218,6 +218,100 @@ describe('display panel sessions + ticking', () => {
     expect(tick.statusCode).toBe(401)
   })
 
+  // ── up-for-grabs: claim-on-tick ─────────────────────────────────────────────
+  it('ticking an up-for-grabs chore claims it to the PIN session person, then completes it', async () => {
+    const add = await call('POST', '/api/chores', admin, { title: 'Hoover kitchen', personId: null, rewardAmount: 3 })
+    expect(add.statusCode).toBe(201)
+    const feed = json(await call('GET', '/api/display/feed', feedDevice))
+    const grabId = feed.upForGrabs.chores.find((c: { title: string }) => c.title === 'Hoover kitchen').instanceId
+
+    const before = json(await call('GET', '/api/chores/today', admin)).people.find((p: { id: string }) => p.id === kidId)
+
+    const device = await mintDeviceToken(householdId)
+    const session = json(await call('POST', '/api/display/sessions', device, { pin: '4242' })).accessToken // Wally
+    const tick = await call('POST', `/api/display/chores/${grabId}/tick`, session)
+    expect(tick.statusCode).toBe(200)
+    const body = json(tick)
+    expect(body.instance).toMatchObject({ id: grabId, personId: kidId, status: 'done' })
+    expect(body.doneBy).toMatchObject({ id: kidId, name: 'Wally' })
+
+    // Stars landed on the claiming person — awardStars reads inst.person_id,
+    // which the claim just set — via the same ledger the phone's stars come from.
+    const after = json(await call('GET', '/api/chores/today', admin)).people.find((p: { id: string }) => p.id === kidId)
+    expect(after.stars).toBe(before.stars + 3)
+    expect(after.done).toBe(before.done + 1)
+
+    // The ledger entry itself names the claiming person, not left anonymous.
+    const ledger = await query<{ person_id: string; reason: string; ref_id: string }>(
+      `select person_id, reason, ref_id from ledger_entries where ref_type = 'chore_instance' and ref_id = $1`,
+      [grabId]
+    )
+    expect(ledger.rows).toHaveLength(1)
+    expect(ledger.rows[0]).toMatchObject({ person_id: kidId, reason: 'chore_completed', ref_id: grabId })
+
+    // The feed agrees: it's under Wally now, no longer up for grabs.
+    const afterFeed = json(await call('GET', '/api/display/feed', feedDevice))
+    expect(afterFeed.upForGrabs.chores.some((c: { title: string }) => c.title === 'Hoover kitchen')).toBe(false)
+    const wally = afterFeed.people.find((p: { id: string }) => p.id === kidId)
+    expect(wally.chores.find((c: { title: string }) => c.title === 'Hoover kitchen')).toMatchObject({
+      status: 'done',
+      doneBy: { id: kidId, name: 'Wally' },
+    })
+  })
+
+  it('two sessions racing the same up-for-grabs chore: exactly one claims it, the other gets 409', async () => {
+    const add = await call('POST', '/api/chores', admin, { title: 'Walk Blueberry & Tuppence', personId: null })
+    expect(add.statusCode).toBe(201)
+    const feed = json(await call('GET', '/api/display/feed', feedDevice))
+    const grabId = feed.upForGrabs.chores.find((c: { title: string }) => c.title === 'Walk Blueberry & Tuppence').instanceId
+
+    const deviceA = await mintDeviceToken(householdId)
+    const sessionA = json(await call('POST', '/api/display/sessions', deviceA, { pin: '4242' })).accessToken // Wally
+    const deviceB = await mintDeviceToken(householdId)
+    const sessionB = json(await call('POST', '/api/display/sessions', deviceB, { pin: '1357' })).accessToken // Nora
+
+    const [a, b] = await Promise.all([
+      call('POST', `/api/display/chores/${grabId}/tick`, sessionA),
+      call('POST', `/api/display/chores/${grabId}/tick`, sessionB),
+    ])
+    const winners = [a, b].filter((r) => r.statusCode === 200)
+    const losers = [a, b].filter((r) => r.statusCode === 409)
+    expect(winners).toHaveLength(1)
+    expect(losers).toHaveLength(1)
+    expect(json(losers[0])).toMatchObject({ error: 'Conflict' })
+
+    const winnerPersonId = json(winners[0]).instance.personId
+    expect([kidId, kid2Id]).toContain(winnerPersonId)
+
+    // The feed agrees with whoever actually won — done, under that person, no
+    // longer up for grabs. The loser didn't steal it.
+    const afterFeed = json(await call('GET', '/api/display/feed', feedDevice))
+    expect(afterFeed.upForGrabs.chores.some((c: { title: string }) => c.title === 'Walk Blueberry & Tuppence')).toBe(false)
+    const winnerPerson = afterFeed.people.find((p: { id: string }) => p.id === winnerPersonId)
+    expect(winnerPerson.chores.find((c: { title: string }) => c.title === 'Walk Blueberry & Tuppence')).toMatchObject({
+      status: 'done',
+    })
+  })
+
+  it('ticking an already-assigned chore never claims it — the assignee stays put', async () => {
+    const add = await call('POST', '/api/chores', admin, { title: 'Set the table', personId: kid2Id })
+    expect(add.statusCode).toBe(201)
+    const feed = json(await call('GET', '/api/display/feed', feedDevice))
+    const instId = feed.people.find((p: { id: string }) => p.id === kid2Id).chores
+      .find((c: { title: string }) => c.title === 'Set the table').instanceId
+
+    const device = await mintDeviceToken(householdId)
+    const wallySession = json(await call('POST', '/api/display/sessions', device, { pin: '4242' })).accessToken
+    const tick = await call('POST', `/api/display/chores/${instId}/tick`, wallySession)
+    expect(tick.statusCode).toBe(200)
+    // doneBy (completed_by) is whoever's PIN ticked it — Wally — but the assignee
+    // (instance.personId) is untouched: no claim is attempted on an
+    // already-assigned instance, same as a phone/admin completing on someone
+    // else's behalf today.
+    expect(json(tick).instance).toMatchObject({ id: instId, personId: kid2Id, status: 'done' })
+    expect(json(tick).doneBy).toMatchObject({ id: kidId, name: 'Wally' })
+  })
+
   it("404s ticking another household's instance even with a valid session", async () => {
     // A second household on the same admin account, with its own chore+instance.
     const other = json(await call('POST', '/api/households', admin, { name: 'Other House', timezone: 'UTC', person: { name: 'Milo' } }))

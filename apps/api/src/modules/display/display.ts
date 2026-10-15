@@ -27,6 +27,7 @@ import {
   todayDate,
   ensureTodayInstances,
   listTodayInstances,
+  claimInstance,
   completeInstance,
   uncompleteInstance,
   presentInstance,
@@ -125,42 +126,71 @@ function sessionTenant(session: DisplaySessionPrincipal): Tenant {
   }
 }
 
+interface FeedChore {
+  instanceId: string
+  title: string
+  dueOn: string | null
+  status: 'pending' | 'done'
+  doneBy: { id: string; name: string } | null
+}
+
 interface FeedPerson {
   id: string
   name: string
-  chores: Array<{
-    instanceId: string
-    title: string
-    dueOn: string | null
-    status: 'pending' | 'done'
-    doneBy: { id: string; name: string } | null
-  }>
+  // Household colour/avatar for the restyled panel (apps/api/CLAUDE.md:
+  // display.ts is the display module's own home) — person-level, not per-chore.
+  // May be null: a person who never set one.
+  colorHex: string | null
+  avatarEmoji: string | null
+  chores: FeedChore[]
 }
 
-// Groups today's attributed instances per person. Up-for-grabs instances (no
-// assignee) have nobody to attribute a tick to, so the panel — which exists to show
-// per-person chores — doesn't carry them; that stays today's-instances-only via
-// listTodayInstances, same gating (settings.chores.hideFutureDated) as the phone/web.
-function presentFeed(instances: TodayInstance[]): FeedPerson[] {
+interface Feed {
+  people: FeedPerson[]
+  upForGrabs: { chores: FeedChore[] }
+}
+
+function presentChore(i: TodayInstance): FeedChore {
+  return {
+    instanceId: i.id,
+    title: i.choreTitle,
+    dueOn: i.dueOn ?? null,
+    // awaiting-approval instances read as pending on the panel — there is nothing
+    // for a finger to tick until a parent approves it elsewhere.
+    status: i.status === 'done' ? 'done' : 'pending',
+    doneBy: i.completedBy,
+  }
+}
+
+// Groups today's instances per person, plus a separate up-for-grabs bucket for the
+// unassigned ones. Unassigned instances used to be dropped here — "nobody to
+// attribute a tick to" — but POST /api/display/chores/:id/tick now claims an
+// up-for-grabs instance to the PIN'd session person before completing it (see the
+// tick route below), so attribution is solved by claiming, not by hiding the row.
+// upForGrabs is a SIBLING of people, not a fake person inside it, so a panel still
+// running the pre-upForGrabs firmware keeps parsing people[] unchanged.
+function presentFeed(instances: TodayInstance[]): Feed {
   const byPerson = new Map<string, FeedPerson>()
+  const upForGrabs: FeedChore[] = []
   for (const i of instances) {
-    if (!i.personId || !i.personName) continue
+    if (!i.personId || !i.personName) {
+      upForGrabs.push(presentChore(i))
+      continue
+    }
     let person = byPerson.get(i.personId)
     if (!person) {
-      person = { id: i.personId, name: i.personName, chores: [] }
+      person = {
+        id: i.personId,
+        name: i.personName,
+        colorHex: i.personColor ?? null,
+        avatarEmoji: i.personAvatar ?? null,
+        chores: [],
+      }
       byPerson.set(i.personId, person)
     }
-    person.chores.push({
-      instanceId: i.id,
-      title: i.choreTitle,
-      dueOn: i.dueOn ?? null,
-      // awaiting-approval instances read as pending on the panel — there is nothing
-      // for a finger to tick until a parent approves it elsewhere.
-      status: i.status === 'done' ? 'done' : 'pending',
-      doneBy: i.completedBy,
-    })
+    person.chores.push(presentChore(i))
   }
-  return [...byPerson.values()]
+  return { people: [...byPerson.values()], upForGrabs: { chores: upForGrabs } }
 }
 
 // Who completed an instance, by id — presentInstance() only carries the id
@@ -172,6 +202,17 @@ async function completedByName(id: string | null): Promise<{ id: string; name: s
   return rows[0] ?? null
 }
 
+// Lightweight pre-check for the claim-on-tick decision below: is this instance
+// unassigned right now? Scoped by household so a cross-tenant id reads as absent,
+// same as every other display route.
+async function instancePersonId(householdId: string, id: string): Promise<string | null | undefined> {
+  const { rows } = await query<{ person_id: string | null }>(
+    `select person_id from chore_instances where household_id = $1 and id = $2 and deleted_at is null`,
+    [householdId, id]
+  )
+  return rows[0] ? rows[0].person_id : undefined // undefined: no such row
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function registerDisplayRoutes(api: Api): void {
@@ -181,7 +222,8 @@ export function registerDisplayRoutes(api: Api): void {
     const date = todayDate(tz)
     await ensureTodayInstances(householdId, date)
     const instances = await listTodayInstances(householdId, date, tz, { streaks: false })
-    return { generatedAt: new Date().toISOString(), people: presentFeed(instances) }
+    const feed = presentFeed(instances)
+    return { generatedAt: new Date().toISOString(), people: feed.people, upForGrabs: feed.upForGrabs }
   })
 
   // Device-authed, public (see PUBLIC_PATHS): spend the device token + a person's
@@ -224,12 +266,33 @@ export function registerDisplayRoutes(api: Api): void {
   // history and the phone UI see the same thing a panel tick produces. Idempotent:
   // completeInstance no-ops (returns the existing row) on an already done/awaiting
   // instance rather than double-awarding.
+  //
+  // Up-for-grabs (person_id null) instances are claimed to the PIN'd session
+  // person FIRST, via the same claimInstance() the phone's own claim route uses —
+  // that's what lets awardStars (which reads inst.person_id) credit the right
+  // person, and lets the response/feed read "done by <them>" with no second poll.
+  // An already-assigned instance skips the claim entirely: completeInstance alone,
+  // unchanged from before this feature.
   api.post('/api/display/chores/:instanceId/tick', async (req: Request, res: Response) => {
     const session = requireDisplaySession(req)
     const instanceId = req.params.instanceId ?? ''
     if (!UUID_RE.test(instanceId)) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
     try {
-      const inst = await completeInstance(sessionTenant(session), instanceId)
+      const tenant = sessionTenant(session)
+      const currentPersonId = await instancePersonId(session.householdId, instanceId)
+      if (currentPersonId === undefined) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+      if (currentPersonId === null) {
+        const claimed = await claimInstance(tenant, instanceId, session.personId)
+        if (!claimed) {
+          // claimInstance's `where ... and person_id is null` lost the race — find
+          // out why: someone else grabbed it in the gap (409, don't steal it) vs
+          // the row is simply gone now (404, same as every other display route).
+          const recheck = await instancePersonId(session.householdId, instanceId)
+          if (recheck === undefined) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
+          return res.status(409).json({ error: 'Conflict', message: 'someone else just took this one' })
+        }
+      }
+      const inst = await completeInstance(tenant, instanceId)
       if (!inst) return res.status(404).json({ error: 'NotFound', message: 'instance not found' })
       return { instance: presentInstance(inst), doneBy: await completedByName(inst.completed_by) }
     } catch (err) {
