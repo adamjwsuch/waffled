@@ -3,6 +3,18 @@
 Folder-scoped notes; loads when working under `apps/api`. See the repo-root
 `CLAUDE.md` for repo-wide workflow (worktree-first, TDD, PRs, releases).
 
+## Display panel routes (`src/modules/display`)
+
+`GET /api/display/feed` and `POST /api/display/sessions` are listed in `PUBLIC_PATHS`
+(`src/app.ts`) **on purpose**: the kitchen panel authenticates with an opaque device token
+(hashed in `display_devices`, minted by `scripts/mint-display-token.ts`), not a JWT or an
+`x-api-key`, so the global gate has nothing to verify and must not run first. Everything they
+*do* is still normal: the feed reads through `chores.service`, and the session route trades
+the device token plus a person's PIN for a short-lived JWT that the ordinary
+`/api/chore-instances/:id/{complete,uncomplete}` routes then verify like any other request.
+Do not "tidy" those two paths off the public list — the panel would start failing with the
+gate's 401 before it ever reaches its own token check.
+
 ## Database migrations (`apps/api/migrations`)
 
 **Every migration gets a unique `NNNN_` number — never reuse a number.** Migrations are
