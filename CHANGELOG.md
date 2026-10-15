@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   today's instances grouped per person through the same `chores.service` the phone and kiosk use,
   and trades that token plus a person's PIN for a short-lived (10 minute) session token to complete
   or undo a chore — so a tick is attributed to whoever tapped, not to the panel.
+- **The wall display now shows up-for-grabs chores, and claims them when tapped.**
+  `GET /api/display/feed` carries unassigned instances in a new `upForGrabs.chores[]`, a sibling
+  of `people[]` so already-deployed panel firmware keeps working unchanged. Tapping an up-for-grabs
+  chore claims it to whoever's PIN is entered, then ticks it — they get the stars and the row reads
+  "done by" them — instead of the chore staying hidden for having nobody to attribute a tick to.
+  Two panels racing the same chore: the second gets a 409 rather than stealing it from the first.
+  The feed also now sends each person's household colour/avatar (`colorHex`, `avatarEmoji`) for the
+  panel's restyle.
 
 ### Changed
 
