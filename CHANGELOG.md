@@ -51,6 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default on; admin-settable via `PUT /api/chores/settings`). A one-off chore created on Monday for
   Friday no longer appears in Today all week — it appears on Friday. Recurring chores and overdue
   rollovers are unaffected.
+- **A wall display can show today's chores and let people tick them off as themselves**
+  (`GET /api/display/feed`, `POST /api/display/sessions`). The panel holds one revocable device
+  token (hashed at rest, minted with `mint-display-token`) rather than a person's login, reads
+  today's instances grouped per person through the same `chores.service` the phone and kiosk use,
+  and trades that token plus a person's PIN for a short-lived (10 minute) session token to complete
+  or undo a chore — so a tick is attributed to whoever tapped, not to the panel.
 
 ### Changed
 
