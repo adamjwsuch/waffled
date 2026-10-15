@@ -41,15 +41,21 @@ async function withClient<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   try { return await fn(client) } finally { await client.end() }
 }
 
-// A timed event N hours ago, lasting `durMin` minutes, linked to a goal.
-async function linkedEvent(goalId: string, durMin: number, participantIds: string[], hoursAgo = 24): Promise<string> {
-  const start = new Date(Date.now() - hoursAgo * 3600_000)
+// A timed event at an absolute start (a Date or an ISO string), lasting `durMin`
+// minutes, linked to a goal.
+async function linkedEventAt(goalId: string, startsAt: Date | string, durMin: number, participantIds: string[]): Promise<string> {
+  const start = new Date(startsAt)
   const end = new Date(start.getTime() + durMin * 60_000)
   const r = await call('POST', '/api/events', kevin, {
     title: 'Session', startsAt: start.toISOString(), endsAt: end.toISOString(),
     participantIds, goalId,
   })
   return JSON.parse(r.body).event.id
+}
+
+// A timed event N hours ago, lasting `durMin` minutes, linked to a goal.
+async function linkedEvent(goalId: string, durMin: number, participantIds: string[], hoursAgo = 24): Promise<string> {
+  return linkedEventAt(goalId, new Date(Date.now() - hoursAgo * 3600_000), durMin, participantIds)
 }
 
 beforeAll(async () => {
@@ -213,8 +219,19 @@ describe('calendar → goal recap', () => {
 
   it('habit confirm respects once-a-day (two events, one log)', async () => {
     const goalId = await makeGoal({ title: 'Habit', goalType: 'habit', unit: null, habitPeriod: 'day', habitTargetPerPeriod: 1, trackingMode: 'each_tracks' })
-    const e1 = await linkedEvent(goalId, 30, [kevinId], 26)
-    const e2 = await linkedEvent(goalId, 30, [kevinId], 25) // same day, later
+    // Two events an hour apart on the household's *previous* local day, anchored to the
+    // local calendar rather than to "26h and 25h ago". Those two hours straddle midnight
+    // whenever the suite runs between 00:00 and 02:00 Chicago, which puts the events on
+    // different days and leaves the once-a-day guard with nothing to dedupe — a red run
+    // that says nothing about the code under test.
+    const local = await withClient((cl) =>
+      cl.query<{ e1: Date; e2: Date }>(
+        `select ((now() at time zone 'America/Chicago')::date - 1 + time '10:00') at time zone 'America/Chicago' as e1,
+                ((now() at time zone 'America/Chicago')::date - 1 + time '11:00') at time zone 'America/Chicago' as e2`
+      )
+    )
+    const e1 = await linkedEventAt(goalId, local.rows[0].e1, 30, [kevinId])
+    const e2 = await linkedEventAt(goalId, local.rows[0].e2, 30, [kevinId]) // same day, later
     const items = await recap(goalId)
     expect(items.length).toBe(2)
     expect(items.every((i) => i.suggestedAmount === 1)).toBe(true)
