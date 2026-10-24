@@ -65,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Two panels racing the same chore: the second gets a 409 rather than stealing it from the first.
   The feed also now sends each person's household colour/avatar (`colorHex`, `avatarEmoji`) for the
   panel's restyle.
+- **Switching between the phone planner and the kiosk now has a matching control in both
+  directions, in the Family section.** The planner's Family tab already had a one-way tile
+  back to the kiosk (renamed **"Web view"**); the kiosk's Family page now carries the
+  opposite — an **"App view"** pill beside the page title that switches to the phone
+  planner and remembers the choice. Same `waffled.experience` mechanism either way.
 
 ### Changed
 
