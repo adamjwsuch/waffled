@@ -929,10 +929,18 @@ describe('chores look-ahead (date param)', () => {
     expect(body.instances.some((i: { choreTitle: string }) => i.choreTitle === 'Recycling')).toBe(true)
   })
 
-  it('does not show a Monday-only chore on a non-Monday', async () => {
+  // Fork behaviour: a WEEKLY chore's missed instance carries forward (rollover, default on)
+  // instead of vanishing the next day — see "weekly chores + rollover" below for the full
+  // spec. Upstream asserted the opposite (hidden on any non-matching weekday); this
+  // household wants a Monday chore still on the board, dated Monday, on Tuesday.
+  it('a Monday-only chore missed on Monday still shows (carried forward) on Tuesday', async () => {
+    const monday = nextDow(1)
     const tuesday = nextDow(2)
     const body = JSON.parse((await call('GET', `/api/chore-instances/today?date=${tuesday}`, kevin)).body)
-    expect(body.instances.some((i: { choreTitle: string }) => i.choreTitle === 'Recycling')).toBe(false)
+    const mine = body.instances.filter((i: { choreTitle: string }) => i.choreTitle === 'Recycling')
+    expect(mine).toHaveLength(1)
+    expect(mine[0].dueOn).toBe(monday)
+    expect(mine[0].status).toBe('pending')
   })
 
   it('clamps an out-of-range date back to today', async () => {

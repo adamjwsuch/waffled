@@ -70,6 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A WEEKLY chore missed on its day now stays on the board all week, instead of
+  vanishing the next day.** Daily chores keep the old behaviour (gone the next day, so
+  they don't pile up) and one-off chores are unchanged; weekly chores join the same
+  rollover carry-forward as one-offs, keeping their original due date ("overdue · since
+  Mon") until someone completes them *or* the next week's occurrence comes around —
+  whichever happens never leaves both showing at once. Off per-chore via the existing
+  `rollover` toggle, on by default.
 - **The phone's "Lists" no longer jumps straight to Grocery.** It used to render the
   kiosk's Lists screen unmodified, which auto-opens the grocery board the instant lists
   load — a convenience that only makes sense next to the kiosk's always-visible sidebar.

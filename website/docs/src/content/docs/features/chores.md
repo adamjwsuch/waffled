@@ -10,7 +10,7 @@ Chores are the assignable Tasks board: recurring or one-off jobs that award star
 ## Highlights
 
 - ✅ **Recurring or one-off** — weekly/custom schedules pick specific weekdays (RRULE under the hood), or mark a task **"Just once"** with a due date.
-- 🔁 **Carry-over** — an unfinished one-off rolls forward with an **overdue·since** badge; per-chore rollover toggle, default **on**.
+- 🔁 **Carry-over** — an unfinished one-off or weekly chore rolls forward with an **overdue·since** badge until it's done or (weekly) replaced by the next occurrence; per-chore rollover toggle, default **on**. Daily chores reset each day instead, so they don't pile up.
 - 🙋 **Up-for-grabs** — leave a chore unassigned and anyone can **claim** it; drag between columns to reassign.
 - 🧒 **Family rings on Today** plus a full Tasks board (on iPad it's a wrapping Kanban).
 - 📱 **Your own chores on the iPhone's Today** — the chores card opens on the person signed in, with a tick beside each chore. Tap the card's title to switch to anyone else in the family, or back to the family summary; the phone remembers the pick. A chore that needs a photo opens the Tasks board to take it.
