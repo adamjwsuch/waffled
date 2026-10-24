@@ -247,7 +247,7 @@ test('the planner runs on one column, with its own way back to the kiosk', async
   await page.goto('/?experience=planner')
   await page.getByRole('link', { name: 'Family', exact: true }).click()
   await expect(page).toHaveURL(/\/planner\/family$/)
-  await page.getByText('Kiosk view').click()
+  await page.getByText('Web view').click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.locator('.planner-tabbar')).toHaveCount(0)
   await page.goto('/')
