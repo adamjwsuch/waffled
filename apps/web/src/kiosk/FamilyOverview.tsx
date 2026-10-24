@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router'
 import { useTopbarRight } from './topbar-slot'
 import { useFamilyOverview, type FamilyMember } from '../lib/api'
+import { PLANNER_HOME } from '../planner/mode'
+import { useSwitchExperience } from '../planner/useExperience'
 import './../styles/overview.css'
 
 function MemberCard({ m, onOpen }: { m: FamilyMember; onOpen: () => void }) {
@@ -36,6 +38,7 @@ function MemberCard({ m, onOpen }: { m: FamilyMember; onOpen: () => void }) {
 export function FamilyOverview() {
   const navigate = useNavigate()
   const { people, loading, error } = useFamilyOverview()
+  const switchExperience = useSwitchExperience()
 
   useTopbarRight(
     () => (
@@ -49,7 +52,23 @@ export function FamilyOverview() {
 
   return (
     <div className="family-overview">
-      <div className="fam-title wf-serif">How everyone’s doing</div>
+      <div className="fam-head-row">
+        <div className="fam-title wf-serif">How everyone’s doing</div>
+        {/* A device-level choice, not a family member — lives here because this is
+            where the household manages how it uses the app, same spot as the
+            planner's own switch back to this view (PlannerFamily's "Web view" tile). */}
+        <button
+          type="button"
+          className="pill"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            switchExperience('planner')
+            navigate(PLANNER_HOME, { replace: true })
+          }}
+        >
+          📱 App view
+        </button>
+      </div>
       <div className="fam-grid">
         {people.map((m) => (
           <MemberCard key={m.personId} m={m} onOpen={() => navigate(`/person/${m.personId}`)} />

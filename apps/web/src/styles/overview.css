@@ -141,7 +141,8 @@
 
 /* ===== Family overview ===== */
 .family-overview { flex: 1; padding: 6px 30px 28px; overflow-y: auto; }
-.fam-title { font-size: 24px; font-weight: 600; margin: 4px 0 16px; }
+.fam-head-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 4px 0 16px; }
+.fam-title { font-size: 24px; font-weight: 600; margin: 0; }
 .fam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; align-content: start; }
 .fam-card {
   text-align: left; font: inherit; cursor: pointer; border: 0; width: 100%;

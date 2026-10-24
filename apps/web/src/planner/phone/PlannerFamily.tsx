@@ -42,8 +42,8 @@ export function PlannerFamily() {
     // the way the app's does.
     {
       key: 'kiosk',
-      emoji: '🖥️',
-      name: 'Kiosk view',
+      emoji: '🌐',
+      name: 'Web view',
       action: () => {
         switchExperience('kiosk')
         navigate('/', { replace: true })
