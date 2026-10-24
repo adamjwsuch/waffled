@@ -1221,6 +1221,109 @@ describe('one-off chores + rollover (carry-forward)', () => {
   })
 })
 
+// Fork behaviour: a WEEKLY chore's missed instance stays visible for the whole week —
+// unlike DAILY (see "a recurring chore's missed past instance is NOT carried forward"
+// above, which stays pinned to today-only) — and is retired only by completion or by
+// the next week's occurrence materializing, never both showing at once.
+describe('weekly chores + rollover (carry-forward)', () => {
+  const CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+  const today = todayInTz(TZ)
+  const todayCode = CODES[new Date(`${today}T00:00:00`).getDay()]
+  const otherCode = todayCode === 'MO' ? 'TU' : 'MO'
+
+  type Inst = { id: string; choreId: string; choreTitle: string; dueOn: string; status: string; rrule: string | null }
+  async function day(date: string): Promise<Inst[]> {
+    return JSON.parse((await call('GET', `/api/chore-instances/today?date=${date}`, kevin)).body).instances as Inst[]
+  }
+
+  // Bypasses BYDAY/materialization timing to seed "a past week's instance nobody did" —
+  // mirrors the INSERT shape ensureTodayInstances itself uses.
+  async function seedPastInstance(choreId: string, dueOn: string): Promise<void> {
+    await withClient((c) =>
+      c.query(
+        `insert into chore_instances
+           (household_id, chore_id, person_id, due_on, reward_currency, reward_amount,
+            requires_approval, requires_photo, title_snapshot, emoji_snapshot,
+            due_time_snapshot, rrule_snapshot)
+         select household_id, id, person_id, $2::date, reward_currency, reward_amount,
+                requires_approval, requires_photo, title, emoji, due_time, rrule
+           from chores where id = $1`,
+        [choreId, dueOn]
+      )
+    )
+  }
+
+  async function instanceStatus(id: string): Promise<string> {
+    return withClient(async (c) => {
+      const r = await c.query<{ status: string }>(`select status from chore_instances where id=$1`, [id])
+      return r.rows[0].status
+    })
+  }
+
+  it('carries a missed weekly instance forward mid-week (keeps original due_on)', async () => {
+    const add = await call('POST', '/api/chores', kevin, {
+      title: 'WK Carry', personId: kevinId, rrule: `FREQ=WEEKLY;BYDAY=${otherCode}`,
+    })
+    expect(add.statusCode).toBe(201)
+    const choreId = (JSON.parse(add.body).chore as { id: string }).id
+    const past = shiftDate(today, -3)
+    await seedPastInstance(choreId, past)
+
+    // today !== otherCode, so ensureTodayInstances won't touch this chore today —
+    // the carried-forward row must be the only thing keeping it visible.
+    const mine = (await day(today)).filter((i) => i.choreTitle === 'WK Carry')
+    expect(mine).toHaveLength(1)
+    expect(mine[0].dueOn).toBe(past)
+    expect(mine[0].status).toBe('pending')
+  })
+
+  it('a done weekly instance in the past is NOT carried forward', async () => {
+    const add = await call('POST', '/api/chores', kevin, {
+      title: 'WK Done', personId: kevinId, rrule: `FREQ=WEEKLY;BYDAY=${otherCode}`,
+    })
+    const choreId = (JSON.parse(add.body).chore as { id: string }).id
+    const past = shiftDate(today, -3)
+    await seedPastInstance(choreId, past)
+    const inst = (await day(today)).find((i) => i.choreTitle === 'WK Done')!
+    expect((await call('POST', `/api/chore-instances/${inst.id}/complete`, kevin)).statusCode).toBe(200)
+    expect((await day(today)).some((i) => i.choreTitle === 'WK Done')).toBe(false)
+  })
+
+  it('a new weekly occurrence replaces last week’s pending instance — no duplicate', async () => {
+    const add = await call('POST', '/api/chores', kevin, {
+      title: 'WK Replace', personId: kevinId, rrule: `FREQ=WEEKLY;BYDAY=${todayCode}`,
+    })
+    const choreId = (JSON.parse(add.body).chore as { id: string }).id
+    const lastWeek = shiftDate(today, -7)
+    await seedPastInstance(choreId, lastWeek)
+    const oldId = await withClient(async (c) => {
+      const r = await c.query<{ id: string }>(
+        `select id from chore_instances where chore_id=$1 and due_on=$2`,
+        [choreId, lastWeek]
+      )
+      return r.rows[0].id
+    })
+
+    // today matches BYDAY, so this materializes a fresh instance for today AND must
+    // retire last week's — never both on the board at once.
+    const rows = (await day(today)).filter((i) => i.choreTitle === 'WK Replace')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].dueOn).toBe(today)
+    expect(rows[0].status).toBe('pending')
+    expect(await instanceStatus(oldId)).not.toBe('pending')
+  })
+
+  it('rollover=false on a weekly chore suppresses carry-forward', async () => {
+    const add = await call('POST', '/api/chores', kevin, {
+      title: 'WK NoRoll', personId: kevinId, rrule: `FREQ=WEEKLY;BYDAY=${otherCode}`, rollover: false,
+    })
+    const choreId = (JSON.parse(add.body).chore as { id: string }).id
+    const past = shiftDate(today, -3)
+    await seedPastInstance(choreId, past)
+    expect((await day(today)).some((i) => i.choreTitle === 'WK NoRoll')).toBe(false)
+  })
+})
+
 // settings.chores.hideFutureDated (fork) — a one-off chore dated in the future stays out of
 // Today until its day, and the household can turn that off per household.
 describe('future-dated one-off chores (settings.chores.hideFutureDated)', () => {

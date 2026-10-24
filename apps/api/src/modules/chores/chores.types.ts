@@ -26,8 +26,9 @@ export interface CreateChoreInput {
   dueTime?: string | null
   requiresApproval?: boolean
   requiresPhoto?: boolean
-  // One-off only (rrule null): carry the single instance forward, day to day,
-  // until it's done. Defaults true; ignored for recurring chores.
+  // One-off and WEEKLY chores: carry the pending instance forward, keeping its original
+  // due_on, until it's done or (WEEKLY only) replaced by the next occurrence. Defaults
+  // true; ignored for DAILY chores, which always reset the next day regardless.
   rollover?: boolean
   // One-off only: the date the single instance lands on (YYYY-MM-DD). Defaults to
   // household-local today.

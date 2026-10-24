@@ -169,24 +169,42 @@ const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
 
 // Materialize today's instances (idempotent): DAILY always, WEEKLY when today's weekday is
 // in the rrule's BYDAY list — day codes are distinct 2-letter tokens, so a substring match is safe.
+//
+// A fresh WEEKLY occurrence also retires (status='expired') any still-pending instance of the
+// same chore left over from an earlier due_on. WEEKLY chores carry a missed instance forward
+// all week (see the rollover branch in todaySummary/upForGrabsCount/listTodayInstances below) —
+// without this, the carried-forward row and the newly materialized one would both show, i.e.
+// a duplicate. DAILY instances are untouched: they're never carried forward in the first
+// place (the rollover branch only matches one-offs and WEEKLY), so there's nothing to retire.
 export async function ensureTodayInstances(householdId: string, dueOn: string): Promise<void> {
   const dow = WEEKDAY_CODES[new Date(dueOn + 'T00:00:00').getDay()]
   await query(
-    `insert into chore_instances
-       (household_id, chore_id, person_id, due_on, reward_currency, reward_amount,
-        requires_approval, requires_photo, title_snapshot, emoji_snapshot,
-        due_time_snapshot, rrule_snapshot)
-     select household_id, id, person_id, $2::date, reward_currency, reward_amount,
-            requires_approval, requires_photo, title, emoji, due_time, rrule
-       from chores
-      where household_id = $1 and is_active and deleted_at is null and rrule is not null
-        and (recurrence_start_on is null or recurrence_start_on <= $2::date)
-        and (recurrence_end_at is null or recurrence_end_at::date >= $2::date)
-        and (
-          rrule ilike '%FREQ=DAILY%'
-          or (rrule ilike '%FREQ=WEEKLY%' and rrule ~ ('BYDAY=[A-Z,]*' || $3))
-        )
-     on conflict (chore_id, due_on) do nothing`,
+    `with new_instances as (
+       insert into chore_instances
+         (household_id, chore_id, person_id, due_on, reward_currency, reward_amount,
+          requires_approval, requires_photo, title_snapshot, emoji_snapshot,
+          due_time_snapshot, rrule_snapshot)
+       select household_id, id, person_id, $2::date, reward_currency, reward_amount,
+              requires_approval, requires_photo, title, emoji, due_time, rrule
+         from chores
+        where household_id = $1 and is_active and deleted_at is null and rrule is not null
+          and (recurrence_start_on is null or recurrence_start_on <= $2::date)
+          and (recurrence_end_at is null or recurrence_end_at::date >= $2::date)
+          and (
+            rrule ilike '%FREQ=DAILY%'
+            or (rrule ilike '%FREQ=WEEKLY%' and rrule ~ ('BYDAY=[A-Z,]*' || $3))
+          )
+       on conflict (chore_id, due_on) do nothing
+       returning chore_id, due_on, rrule_snapshot
+     )
+     update chore_instances ci
+        set status = 'expired'
+       from new_instances ni
+      where ci.chore_id = ni.chore_id
+        and ci.due_on < ni.due_on
+        and ci.status = 'pending'
+        and ci.deleted_at is null
+        and ni.rrule_snapshot ilike '%FREQ=WEEKLY%'`,
     [householdId, dueOn, dow]
   )
 }
@@ -246,7 +264,8 @@ export async function todaySummary(householdId: string, dueOn: string, tz = 'UTC
          on c.id = ci.chore_id
          and (c.deleted_at is null or ci.status in ('done', 'awaiting'))
          and (ci.due_on = $2::date
-              or (ci.due_on < $2::date and ci.status = 'pending' and c.rrule is null and c.rollover)
+              or (ci.due_on < $2::date and ci.status = 'pending' and c.rollover
+                  and (c.rrule is null or c.rrule ilike '%FREQ=WEEKLY%'))
               or (not $5::boolean and ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
                   and (ci.created_at at time zone $4)::date <= $2::date))
       -- v_person_balances groups by household too: joining on person_id alone would
@@ -284,7 +303,7 @@ export async function upForGrabsCount(householdId: string, dueOn: string, tz = '
         and ci.status = 'pending'
         and ci.deleted_at is null
         and (ci.due_on = $2::date
-             or (ci.due_on < $2::date and c.rrule is null and c.rollover)
+             or (ci.due_on < $2::date and c.rollover and (c.rrule is null or c.rrule ilike '%FREQ=WEEKLY%'))
              or (not $4::boolean and ci.due_on > $2::date and c.rrule is null
                  and (ci.created_at at time zone $3)::date <= $2::date))`,
     [householdId, dueOn, tz, hideFutureDated]
@@ -344,7 +363,8 @@ export async function listTodayInstances(
       where ci.household_id = $1 and ci.deleted_at is null
         and (c.deleted_at is null or ci.status in ('done', 'awaiting'))
         and (ci.due_on = $2::date
-             or (ci.due_on < $2::date and ci.status = 'pending' and c.rrule is null and c.rollover)
+             or (ci.due_on < $2::date and ci.status = 'pending' and c.rollover
+                 and (c.rrule is null or c.rrule ilike '%FREQ=WEEKLY%'))
              or (not $5::boolean and ci.due_on > $2::date and ci.status = 'pending' and c.rrule is null
                  and (ci.created_at at time zone $3)::date <= $2::date))
         and ($4::uuid is null or ci.person_id = $4::uuid)
@@ -491,7 +511,7 @@ async function lockedInstance(
 
 function requireMutableInstance(instance: ChoreInstanceRow): void {
   if (instance.status !== 'pending') {
-    throw new ChoreScopeError('completed and awaiting-approval chores are immutable history', 409)
+    throw new ChoreScopeError('completed, awaiting-approval, or expired chores are immutable history', 409)
   }
 }
 
